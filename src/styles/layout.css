@@ -1,0 +1,16 @@
+.app {
+  /* Scale the whole UI up (px internals and all). Height is divided back out so
+     the app still fills the viewport exactly instead of overflowing it. */
+  zoom: var(--page-zoom);
+  height: calc(100vh / var(--page-zoom));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.app__main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}

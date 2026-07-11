@@ -1,14 +1,277 @@
-/* Design tokens — fleshed out with the full light/dark system in Phase 6. */
+/*
+ * Design tokens. Every color in the app is a CSS custom property so the whole
+ * theme (including dark mode) is a token swap. Light is the default; dark values
+ * apply when the OS prefers dark (pre-JS fallback) and, decisively, when the root
+ * carries data-theme="dark". An explicit data-theme always wins over the OS.
+ *
+ * Naming: surface/text/border tokens describe role; entity tokens carry the Delta
+ * concept colors — --table-* (blue), --version-* (green log spine), --checkpoint-*
+ * (teal), --add-* (green) / --remove-* (red) action accents, --meta-* (purple,
+ * protocol/metaData), --data-* (amber Parquet), --dv-* (red deletion vectors) —
+ * each with -bg (fill), -bd (border), -line (connector/accent), -ring (focus halo).
+ */
+
 :root {
-  --bg: #f6f7f9;
-  --fg: #1a1c1f;
+  color-scheme: light;
+
+  /* Whole-page scale factor (1 = original). Applied to the .app container. */
+  --page-zoom: 1.2;
+
   --font-sans: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* surfaces */
+  --bg: #efeadf;
+  --header-bg: #f6f3ec;
+  --toolbar-bg: #f2eee4;
+  --panel-bg: #f6f3ec;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-bg-soft: #faf6ef;
+  --code-bg: #f3efe6;
+  --modal-bg: #fbfaf6;
+  --thead-bg: #f3efe6;
+  --segment-bg: #e8e2d5;
+
+  /* borders */
+  --border: #ddd6c8;
+  --border-soft: #eae4d7;
+  --border-hair: #eee7d9;
+  --border-field: #e2dccd;
+  --border-strong: #b9b19d;
+
+  /* text */
+  --text: #1c1b18;
+  --text-strong: #2c2a25;
+  --text-muted: #6b675e;
+  --text-dim: #8a8578;
+  --text-faint: #a39d8e;
+  --text-inverse: #ffffff;
+
+  /* misc */
+  --link: #2f6db3;
+  --link-hover: #24568b;
+  --badge-bg: #e6e0d2;
+  --placeholder: #c7c0b0;
+  --overlay: rgba(28, 27, 24, 0.42);
+  --shadow-node: 0 7px 18px rgba(30, 28, 22, 0.13);
+  --shadow-card: 0 1px 3px rgba(30, 28, 22, 0.14);
+  --shadow-modal: 0 24px 64px rgba(28, 27, 24, 0.3);
+  --scrollbar-thumb: #cfc8b8;
+  --scrollbar-thumb-hover: #b9b19d;
+  --row-deleted-bg: #faf1ee;
+
+  /* accent-only (grey op used by vacuum/checkpoint logs / muted accents) */
+  --accent-gray: #6b675e;
+
+  /* entities */
+  --table-bg: #eef1f5;
+  --table-bd: #8ba7c6;
+  --table-ring: rgba(47, 109, 179, 0.18);
+  --table-line: #2f6db3;
+
+  --version-bg: #e6f2ea;
+  --version-bd: #2f8f5b;
+  --version-ring: rgba(47, 143, 91, 0.24);
+  --version-line: #2f8f5b;
+
+  --checkpoint-bg: #e1f0f0;
+  --checkpoint-bd: #2f8f8f;
+  --checkpoint-ring: rgba(47, 143, 143, 0.22);
+  --checkpoint-line: #268f8f;
+
+  --add-bg: #eaf5ec;
+  --add-bd: #3a9d63;
+  --add-ring: rgba(58, 157, 99, 0.22);
+  --add-line: #2f8f5b;
+
+  --remove-bg: #f9e6e0;
+  --remove-bd: #c0442e;
+  --remove-ring: rgba(192, 68, 46, 0.22);
+  --remove-line: #c0442e;
+
+  --meta-bg: #f0eafa;
+  --meta-bd: #7a55b8;
+  --meta-ring: rgba(122, 85, 184, 0.22);
+  --meta-line: #7a55b8;
+
+  --data-bg: #f9f0dd;
+  --data-bd: #c07b1e;
+  --data-ring: rgba(192, 123, 30, 0.22);
+  --data-line: #c07b1e;
+
+  --dv-bg: #f9e6e0;
+  --dv-bd: #c0442e;
+  --dv-ring: rgba(192, 68, 46, 0.22);
+  --dv-line: #c0442e;
 }
 
+/* Dark values, defined once and shared by the OS fallback and the explicit toggle. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #17150f;
+  --header-bg: #201d16;
+  --toolbar-bg: #1c1a14;
+  --panel-bg: #201d16;
+  --card-bg: #262218;
+  --input-bg: #2b2619;
+  --input-bg-soft: #302a1b;
+  --code-bg: #211e16;
+  --modal-bg: #232019;
+  --thead-bg: #2b2619;
+  --segment-bg: #322d20;
+
+  --border: #3a3427;
+  --border-soft: #332e22;
+  --border-hair: #2f2a1f;
+  --border-field: #3f3928;
+  --border-strong: #6a6250;
+
+  --text: #f0ead9;
+  --text-strong: #f5efe0;
+  --text-muted: #b3ac97;
+  --text-dim: #948d78;
+  --text-faint: #7a7360;
+  --text-inverse: #17150f;
+
+  --link: #6fa6df;
+  --link-hover: #92bde9;
+  --badge-bg: #35301f;
+  --placeholder: #6a6250;
+  --overlay: rgba(0, 0, 0, 0.62);
+  --shadow-node: 0 7px 18px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
+  --scrollbar-thumb: #46402f;
+  --scrollbar-thumb-hover: #5c5540;
+  --row-deleted-bg: #38221c;
+
+  --accent-gray: #a49c86;
+
+  --table-bg: #23282e;
+  --table-bd: #587a9e;
+  --table-ring: rgba(111, 166, 223, 0.28);
+  --table-line: #6fa6df;
+
+  --version-bg: #16281d;
+  --version-bd: #37a468;
+  --version-ring: rgba(74, 184, 121, 0.32);
+  --version-line: #57c288;
+
+  --checkpoint-bg: #14282a;
+  --checkpoint-bd: #2f9a9a;
+  --checkpoint-ring: rgba(74, 184, 184, 0.3);
+  --checkpoint-line: #4fc2c2;
+
+  --add-bg: #16281d;
+  --add-bd: #3fae72;
+  --add-ring: rgba(74, 184, 121, 0.3);
+  --add-line: #57c288;
+
+  --remove-bg: #34190f;
+  --remove-bd: #cf5238;
+  --remove-ring: rgba(212, 96, 74, 0.3);
+  --remove-line: #e06a4a;
+
+  --meta-bg: #241a33;
+  --meta-bd: #8b68c8;
+  --meta-ring: rgba(163, 129, 214, 0.3);
+  --meta-line: #a988e0;
+
+  --data-bg: #322415;
+  --data-bd: #cf8a2c;
+  --data-ring: rgba(217, 144, 46, 0.3);
+  --data-line: #dc9a3a;
+
+  --dv-bg: #34190f;
+  --dv-bd: #cf5238;
+  --dv-ring: rgba(212, 96, 74, 0.3);
+  --dv-line: #e06a4a;
+}
+
+/* Pre-JS fallback: follow the OS unless the user has pinned a theme via the toggle. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #16181c;
-    --fg: #e7e9ec;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #17150f;
+    --header-bg: #201d16;
+    --toolbar-bg: #1c1a14;
+    --panel-bg: #201d16;
+    --card-bg: #262218;
+    --input-bg: #2b2619;
+    --input-bg-soft: #302a1b;
+    --code-bg: #211e16;
+    --modal-bg: #232019;
+    --thead-bg: #2b2619;
+    --segment-bg: #322d20;
+
+    --border: #3a3427;
+    --border-soft: #332e22;
+    --border-hair: #2f2a1f;
+    --border-field: #3f3928;
+    --border-strong: #6a6250;
+
+    --text: #f0ead9;
+    --text-strong: #f5efe0;
+    --text-muted: #b3ac97;
+    --text-dim: #948d78;
+    --text-faint: #7a7360;
+    --text-inverse: #17150f;
+
+    --link: #6fa6df;
+    --link-hover: #92bde9;
+    --badge-bg: #35301f;
+    --placeholder: #6a6250;
+    --overlay: rgba(0, 0, 0, 0.62);
+    --shadow-node: 0 7px 18px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.45);
+    --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --scrollbar-thumb: #46402f;
+    --scrollbar-thumb-hover: #5c5540;
+    --row-deleted-bg: #38221c;
+
+    --accent-gray: #a49c86;
+
+    --table-bg: #23282e;
+    --table-bd: #587a9e;
+    --table-ring: rgba(111, 166, 223, 0.28);
+    --table-line: #6fa6df;
+
+    --version-bg: #16281d;
+    --version-bd: #37a468;
+    --version-ring: rgba(74, 184, 121, 0.32);
+    --version-line: #57c288;
+
+    --checkpoint-bg: #14282a;
+    --checkpoint-bd: #2f9a9a;
+    --checkpoint-ring: rgba(74, 184, 184, 0.3);
+    --checkpoint-line: #4fc2c2;
+
+    --add-bg: #16281d;
+    --add-bd: #3fae72;
+    --add-ring: rgba(74, 184, 121, 0.3);
+    --add-line: #57c288;
+
+    --remove-bg: #34190f;
+    --remove-bd: #cf5238;
+    --remove-ring: rgba(212, 96, 74, 0.3);
+    --remove-line: #e06a4a;
+
+    --meta-bg: #241a33;
+    --meta-bd: #8b68c8;
+    --meta-ring: rgba(163, 129, 214, 0.3);
+    --meta-line: #a988e0;
+
+    --data-bg: #322415;
+    --data-bd: #cf8a2c;
+    --data-ring: rgba(217, 144, 46, 0.3);
+    --data-line: #dc9a3a;
+
+    --dv-bg: #34190f;
+    --dv-bd: #cf5238;
+    --dv-ring: rgba(212, 96, 74, 0.3);
+    --dv-line: #e06a4a;
   }
 }
