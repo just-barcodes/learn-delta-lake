@@ -1,4 +1,6 @@
 import { Header } from "./components/Header";
+import { SidePanel } from "./components/SidePanel";
+import { Toolbar } from "./components/Toolbar";
 import { GraphCanvas } from "./components/graph/GraphCanvas";
 import { useTableModel } from "./state/useTableModel";
 import { useTheme } from "./theme/useTheme";
@@ -11,8 +13,10 @@ export function App() {
   return (
     <div className="app">
       <Header state={state} dispatch={dispatch} resolved={resolved} onToggleTheme={toggle} />
+      <Toolbar state={state} dispatch={dispatch} />
       <div className="app__main">
         <GraphCanvas state={state} dispatch={dispatch} themeKey={resolved} />
+        <SidePanel state={state} />
       </div>
     </div>
   );

@@ -1,0 +1,186 @@
+.sidepanel {
+  width: 346px;
+  flex: none;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg);
+  overflow: auto;
+  padding: 18px 18px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* ---- what just happened ---- */
+
+.whathappened {
+  background: var(--card-bg);
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  padding: 14px 15px;
+  box-shadow: var(--shadow-card);
+}
+.whathappened__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.whathappened__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+.whathappened__title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.whathappened__body {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-strong);
+  margin-bottom: 9px;
+}
+.whathappened__bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.whathappened__bullets li {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-strong);
+}
+.whathappened__bullet-mark {
+  color: var(--accent);
+  font-weight: 700;
+  flex: none;
+}
+
+/* ---- stat grid ---- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border-field);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+.stat__value {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+.stat__label {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  line-height: 1.2;
+}
+
+/* ---- generic panel card (legend, commit log) ---- */
+
+.panel-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-field);
+  border-radius: 11px;
+  padding: 12px 13px;
+}
+.panel-card--grow {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+.panel-card__head {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 9px;
+}
+
+/* ---- legend ---- */
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.legend__row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.legend__swatch {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border-radius: 4px;
+  background: var(--node-bg);
+  border: 1.5px solid var(--node-bd);
+}
+.legend__swatch--pointer {
+  height: 6px;
+  border: none;
+  border-top: 2px dashed var(--version-line);
+  border-radius: 0;
+  background: transparent;
+}
+.legend__text {
+  font-size: 11px;
+  color: var(--text-strong);
+}
+.legend__text b {
+  font-weight: 600;
+}
+
+/* ---- commit log ---- */
+
+.commit-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+.commit-log__row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.commit-log__badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 5px;
+  padding: 2px 6px;
+  flex: none;
+  margin-top: 1px;
+}
+.commit-log__text {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-strong);
+}
