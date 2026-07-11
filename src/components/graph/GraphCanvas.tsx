@@ -41,7 +41,7 @@ export function GraphCanvas({ state, dispatch, themeKey }: Props) {
             <GraphNode node={g.tableNode} dispatch={dispatch} />
           </GraphColumn>
           <GraphColumn title="Transaction log" count={g.counts.version}>
-            {g.versionNodes.map((n) => (
+            {g.logNodes.map((n) => (
               <GraphNode key={n.id} node={n} dispatch={dispatch} />
             ))}
           </GraphColumn>

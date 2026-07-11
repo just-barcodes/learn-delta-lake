@@ -1,6 +1,6 @@
 import { prunedSet } from "../domain/query";
 import type { Action } from "../domain/reducer";
-import { commitAt, liveFilesAt } from "../domain/replay";
+import { commitAt, liveFilesAt, replayPath } from "../domain/replay";
 import type { NodeKind, TableState } from "../domain/types";
 
 /** A single card in the graph. Pure data — styling is entirely CSS. */
@@ -28,7 +28,8 @@ export interface GraphNodeVM {
 
 export interface GraphModel {
   tableNode: GraphNodeVM;
-  versionNodes: GraphNodeVM[];
+  /** Version nodes with any checkpoint cards interleaved after the version they cover. */
+  logNodes: GraphNodeVM[];
   actionNodes: GraphNodeVM[];
   fileNodes: GraphNodeVM[];
   counts: { version: number; action: number; file: number };
@@ -56,10 +57,16 @@ export function buildGraph(state: TableState): GraphModel {
     action: { type: "openInspect", kind: "table", id: null },
   };
 
-  const versionNodes: GraphNodeVM[] = state.commits.map((cmt) => {
+  // Checkpoint cards appear from medium on; the highest-version one is _last_checkpoint.
+  const showCheckpoints = !simple;
+  const lastCkptVersion = state.checkpoints.reduce((m, cp) => Math.max(m, cp.version), -1);
+
+  // Version nodes, with a checkpoint card interleaved after any version it snapshots.
+  const logNodes: GraphNodeVM[] = [];
+  for (const cmt of state.commits) {
     const isSel = cmt.version === state.selected;
     const current = cmt.version === state.current;
-    return {
+    logNodes.push({
       id: "ver-" + cmt.version,
       kind: "version",
       pill: "VERSION",
@@ -74,8 +81,22 @@ export function buildGraph(state: TableState): GraphModel {
       action: isSel
         ? { type: "openInspect", kind: "version", id: String(cmt.version) }
         : { type: "selectVersion", version: cmt.version },
-    };
-  });
+    });
+    const cp = showCheckpoints ? state.checkpoints.find((c) => c.version === cmt.version) : null;
+    if (cp) {
+      logNodes.push({
+        id: "ckpt-" + cp.version,
+        kind: "checkpoint",
+        pill: "CHECKPOINT",
+        name: "…" + String(cp.version).padStart(4, "0") + ".checkpoint",
+        sub: "snapshot @ v" + cp.version,
+        note: cp.version === lastCkptVersion ? "_last_checkpoint →" : null,
+        tag: cp.liveFiles.length + " file(s)",
+        tagVariant: "kind",
+        action: { type: "openInspect", kind: "checkpoint", id: String(cp.version) },
+      });
+    }
+  }
 
   // The actions of the selected commit (its delta). commitInfo is shown in the
   // version inspector, not as a card.
@@ -166,7 +187,7 @@ export function buildGraph(state: TableState): GraphModel {
 
   return {
     tableNode,
-    versionNodes,
+    logNodes,
     actionNodes,
     fileNodes,
     counts: {
@@ -243,6 +264,18 @@ export function computeEdges(state: TableState): Edge[] {
       edges.push({ from: selId, to: actId, colorVar: LINE_VAR.meta });
     }
   });
+
+  // Reader shortcut: if a checkpoint covers the selected version, the reader starts
+  // there and replays only the tail commits, instead of replaying the whole log.
+  const rp = replayPath(state, state.selected);
+  if (rp.checkpoint) {
+    edges.push({
+      from: "ckpt-" + rp.checkpoint.version,
+      to: selId,
+      colorVar: LINE_VAR.checkpoint,
+      dash: true,
+    });
+  }
 
   if (state.current !== state.selected) {
     edges.push({
