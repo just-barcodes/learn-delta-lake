@@ -79,7 +79,8 @@ export interface Commit {
 /** A NNN.checkpoint.parquet: the materialized live-file set through `version`. */
 export interface Checkpoint {
   version: number;
-  liveFiles: string[];
+  /** Each live file and its active deletion vector, so the checkpoint replays correctly. */
+  liveFiles: { path: string; dv: string | null }[];
   size: number;
 }
 
