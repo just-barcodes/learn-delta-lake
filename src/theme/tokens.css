@@ -1,0 +1,14 @@
+/* Design tokens — fleshed out with the full light/dark system in Phase 6. */
+:root {
+  --bg: #f6f7f9;
+  --fg: #1a1c1f;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181c;
+    --fg: #e7e9ec;
+  }
+}

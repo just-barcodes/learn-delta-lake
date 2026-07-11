@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    assignees:
+      - "just-barcodes"
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for all low-risk (minor + patch) bumps; majors get their own PRs.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    assignees:
+      - "just-barcodes"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
