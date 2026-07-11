@@ -11,7 +11,7 @@ import { computeStats } from "./stats";
 import type { Action, Commit, DataFile, TableState } from "./types";
 
 /** Minimal data file with N rows starting at a given order id, for replay tests. */
-function file(id: string, startId: number, n: number, born: number, dv?: string): DataFile {
+function file(id: string, startId: number, n: number, born: number): DataFile {
   const records = Array.from({ length: n }, (_, i) => ({
     order_id: startId + i,
     customer: "c",
@@ -19,15 +19,7 @@ function file(id: string, startId: number, n: number, born: number, dv?: string)
     order_date: "2026-01-05",
     status: "paid",
   }));
-  return {
-    id,
-    records,
-    size: n,
-    partition: "2026-01",
-    born,
-    stats: computeStats(records),
-    dv: dv ?? null,
-  };
+  return { id, records, size: n, partition: "2026-01", born, stats: computeStats(records) };
 }
 
 function commit(version: number, op: Commit["op"], actions: Action[]): Commit {

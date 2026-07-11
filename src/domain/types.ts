@@ -45,8 +45,6 @@ export interface DataFile {
   born: number;
   /** Column stats recorded when the file was written (see FileStats). */
   stats: FileStats;
-  /** Deletion-vector id when rows are masked merge-on-read, else absent. */
-  dv?: string | null;
   optimized?: boolean;
 }
 
