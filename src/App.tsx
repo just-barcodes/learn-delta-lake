@@ -1,4 +1,6 @@
+import { DeletePicker } from "./components/DeletePicker";
 import { Header } from "./components/Header";
+import { Inspector } from "./components/Inspector";
 import { SidePanel } from "./components/SidePanel";
 import { Toolbar } from "./components/Toolbar";
 import { GraphCanvas } from "./components/graph/GraphCanvas";
@@ -18,6 +20,8 @@ export function App() {
         <GraphCanvas state={state} dispatch={dispatch} themeKey={resolved} />
         <SidePanel state={state} />
       </div>
+      <Inspector state={state} dispatch={dispatch} />
+      <DeletePicker state={state} dispatch={dispatch} />
     </div>
   );
 }

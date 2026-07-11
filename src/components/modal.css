@@ -1,0 +1,83 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--overlay);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 34px;
+  animation: fadeIn 0.16s ease both;
+}
+
+.modal-panel {
+  max-width: 100%;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--modal-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: popIn 0.2s ease both;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--card-bg);
+}
+.modal-head__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.modal-head__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.modal-head__title--mono {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.modal-head__subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.modal-close {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 8px;
+  border: 1px solid var(--border-field);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.modal-close:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.modal-body {
+  overflow: auto;
+  padding: 16px 18px;
+}
