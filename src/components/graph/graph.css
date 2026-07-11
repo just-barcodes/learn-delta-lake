@@ -1,0 +1,228 @@
+.graph-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.graph-inner {
+  position: relative;
+  display: flex;
+  gap: 78px;
+  padding: 20px 46px 34px;
+  min-width: max-content;
+  align-items: flex-start;
+}
+
+.graph-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+
+.graph-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.graph-col__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.graph-col__count {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-faint);
+  background: var(--badge-bg);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.graph-col__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- node card ---- */
+
+.node {
+  --node-bg: var(--table-bg);
+  --node-bd: var(--table-bd);
+  --node-ring: var(--table-ring);
+
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 180px;
+  max-width: 236px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--node-bg);
+  border: 1.5px solid var(--node-bd);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+  transition:
+    opacity 0.3s,
+    filter 0.3s,
+    box-shadow 0.2s,
+    transform 0.15s;
+  animation: popIn 0.3s ease both;
+}
+.node:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-node);
+}
+.node:focus-visible {
+  outline: 2px solid var(--node-bd);
+  outline-offset: 2px;
+}
+
+.node--table {
+  --node-bg: var(--table-bg);
+  --node-bd: var(--table-bd);
+  --node-ring: var(--table-ring);
+}
+.node--version {
+  --node-bg: var(--version-bg);
+  --node-bd: var(--version-bd);
+  --node-ring: var(--version-ring);
+}
+.node--checkpoint {
+  --node-bg: var(--checkpoint-bg);
+  --node-bd: var(--checkpoint-bd);
+  --node-ring: var(--checkpoint-ring);
+}
+.node--add {
+  --node-bg: var(--add-bg);
+  --node-bd: var(--add-bd);
+  --node-ring: var(--add-ring);
+}
+.node--remove {
+  --node-bg: var(--remove-bg);
+  --node-bd: var(--remove-bd);
+  --node-ring: var(--remove-ring);
+}
+.node--meta {
+  --node-bg: var(--meta-bg);
+  --node-bd: var(--meta-bd);
+  --node-ring: var(--meta-ring);
+}
+.node--data {
+  --node-bg: var(--data-bg);
+  --node-bd: var(--data-bd);
+  --node-ring: var(--data-ring);
+}
+.node--dv {
+  --node-bg: var(--dv-bg);
+  --node-bd: var(--dv-bd);
+  --node-ring: var(--dv-ring);
+}
+
+.node.is-inactive {
+  opacity: 0.3;
+  filter: grayscale(0.5);
+}
+.node.is-pruned {
+  opacity: 0.24;
+  filter: grayscale(0.7);
+}
+.node.is-scanned {
+  border-color: var(--version-bd);
+  box-shadow: 0 0 0 2.5px var(--version-ring);
+}
+.node.is-current {
+  border-width: 2px;
+  box-shadow: 0 0 0 3px var(--node-ring);
+}
+
+.node__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+  background: var(--node-bd);
+  color: #fff;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+  background: var(--card-bg);
+  border: 1px solid var(--node-bd);
+  color: var(--node-bd);
+}
+.tag--neutral {
+  background: var(--badge-bg);
+  border-color: var(--border);
+  color: var(--text-faint);
+}
+
+.node__name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.node__name {
+  font-weight: 600;
+  font-size: 12.5px;
+  line-height: 1.2;
+  word-break: break-all;
+}
+.node__meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.node__sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+.node__note {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+.node__hint {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--version-line);
+  margin-top: 2px;
+}
