@@ -38,6 +38,13 @@
   flex: 1;
 }
 
+.header__level,
+.header > .btn-ghost,
+.header > .icon-link,
+.header > .theme-toggle {
+  align-self: flex-end;
+}
+
 .header__level {
   display: flex;
   flex-direction: column;
