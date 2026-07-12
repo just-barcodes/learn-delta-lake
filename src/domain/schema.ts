@@ -7,10 +7,41 @@ export const ORDER_COLS = [
   { key: "status", label: "status", align: "left", mono: false },
 ] as const;
 
-/** Schema column names, as recorded in the `metaData` action. */
-export const SCHEMA_COLS = ORDER_COLS.map((c) => c.key);
+/** One field in the table's logical schema, as recorded in the `metaData` action's schemaString. */
+export interface SchemaField {
+  name: string;
+  /** Delta/Spark type string, e.g. "long" or "decimal(10,2)". */
+  type: string;
+  nullable: boolean;
+  /** For a generated column: the SQL expression Delta stores as `delta.generationExpression`. */
+  generated?: string;
+}
 
-/** The table is partitioned by a literal month column (Delta has no hidden transforms). */
+/**
+ * The table's logical schema. Delta has no hidden partition transforms, so the
+ * partition column `order_month` is a real column of the table — modelled here as a
+ * *generated* column derived from `order_date`. Its value lives in each `add`
+ * action's `partitionValues`, not in the Parquet row data, which is why it is absent
+ * from ORDER_COLS (the physical row grid).
+ */
+export const SCHEMA_FIELDS: SchemaField[] = [
+  { name: "order_id", type: "long", nullable: false },
+  { name: "customer", type: "string", nullable: true },
+  { name: "amount", type: "decimal(10,2)", nullable: true },
+  { name: "order_date", type: "date", nullable: true },
+  { name: "status", type: "string", nullable: true },
+  {
+    name: "order_month",
+    type: "string",
+    nullable: true,
+    generated: "date_format(order_date, 'yyyy-MM')",
+  },
+];
+
+/** Schema column names, as recorded in the `metaData` action (includes the generated partition column). */
+export const SCHEMA_COLS = SCHEMA_FIELDS.map((f) => f.name);
+
+/** The table is partitioned by a generated month column (Delta has no hidden transforms). */
 export const PARTITION_COLS = ["order_month"];
 
 /** Stable table id used in the `metaData` action. */

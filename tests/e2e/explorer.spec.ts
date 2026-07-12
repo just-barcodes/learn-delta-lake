@@ -62,12 +62,13 @@ test("copy-on-write delete drops rows without adding a deletion vector", async (
   expect(await stat(page, "data files on disk")).toBe(3);
 });
 
-test("optimize bin-packs live files into one", async ({ page }) => {
+test("optimize bin-packs live files within each partition", async ({ page }) => {
   await page.locator(".append__main").click();
   expect(await stat(page, "live files")).toBe(3);
   await page.locator(".action", { hasText: "Optimize" }).click();
   await expect(page.locator(".view-badge__value")).toHaveText("v2");
-  expect(await stat(page, "live files")).toBe(1);
+  // d1+d2 (partition 2026-01) compact to one file; d3 (2026-02) is left untouched.
+  expect(await stat(page, "live files")).toBe(2);
 });
 
 test("checkpoint writes a state snapshot without a new version", async ({ page }) => {

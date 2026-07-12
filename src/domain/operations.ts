@@ -1,7 +1,7 @@
 import { clock } from "./ids";
 import { initialState } from "./initialState";
 import { genRecords, type OrderIdCounter } from "./records";
-import { deletedIdsAt, liveFilesAt, liveRecords, liveRowCount, protocolAt } from "./replay";
+import { deletedIdsAt, liveFilesAt, liveRowCount, protocolAt } from "./replay";
 import { DV_PROTOCOL } from "./schema";
 import { computeStats } from "./stats";
 import type {
@@ -13,6 +13,7 @@ import type {
   LastStep,
   NodeKind,
   Operation,
+  OrderRecord,
   QueryColumn,
   QueryOp,
   TableState,
@@ -354,52 +355,70 @@ function dvDelete(
 
 export function optimize(s: TableState): TableState {
   const liveMap = liveFilesAt(s, s.current);
-  const liveIds = [...liveMap.keys()];
-  const hasDv = [...liveMap.values()].some((dv) => dv);
-  if (liveIds.length < 2 && !hasDv) {
+  // OPTIMIZE bin-packs *within* each partition — it never mixes partitions into one file.
+  const byPartition = new Map<string, string[]>();
+  for (const id of liveMap.keys()) {
+    const part = s.dataFiles[id]?.partition ?? "";
+    const ids = byPartition.get(part) ?? [];
+    ids.push(id);
+    byPartition.set(part, ids);
+  }
+  // A partition is worth rewriting only if it holds >1 file or a deletion vector to apply.
+  const targets = [...byPartition.entries()].filter(
+    ([, ids]) => ids.length > 1 || ids.some((id) => liveMap.get(id)),
+  );
+  if (!targets.length) {
     return {
       ...s,
       lastStep: {
         op: "optimize",
         title: "Nothing worth optimizing",
-        body: "OPTIMIZE pays off with several small files (or deletion vectors to apply). Append a few more times, then optimize.",
+        body: "OPTIMIZE pays off when a partition holds several small files (or deletion vectors to apply). Append a few more times, then optimize.",
         bullets: [],
       },
     };
   }
   const version = s.current + 1;
   const c = { ...s.counters };
-  const live = liveRecords(s, s.current).live;
-  const totalSize = Math.max(
-    2,
-    liveIds.reduce((a, id) => a + (s.dataFiles[id]?.size || 0), 0),
-  );
-  const parts = new Set(liveIds.map((id) => s.dataFiles[id]?.partition));
-  const partition = parts.size === 1 ? [...parts][0]! : "optimized";
-  c.d++;
-  const cid = "d" + c.d;
-  const dataFiles = {
-    ...s.dataFiles,
-    [cid]: {
+  const del = deletedIdsAt(s, s.current);
+  const dataFiles = { ...s.dataFiles };
+  const actions: Action[] = [];
+  const removedIds: string[] = [];
+  const addedIds: string[] = [];
+  let hasDv = false;
+  let liveRows = 0;
+  for (const [partition, ids] of targets.sort((a, b) => a[0].localeCompare(b[0]))) {
+    const records: OrderRecord[] = [];
+    let size = 0;
+    for (const id of ids) {
+      const f = s.dataFiles[id];
+      if (!f) continue;
+      if (liveMap.get(id)) hasDv = true;
+      size += f.size || 0;
+      for (const r of f.records) if (!del.has(r.order_id)) records.push({ ...r });
+      actions.push({ kind: "remove", path: id, dataChange: false });
+      removedIds.push(id);
+    }
+    liveRows += records.length;
+    if (!records.length) continue; // every row masked away — just drop the files
+    c.d++;
+    const cid = "d" + c.d;
+    addedIds.push(cid);
+    dataFiles[cid] = {
       id: cid,
-      records: live.map((r) => ({ ...r })),
-      size: totalSize,
+      records,
+      size: Math.max(2, size),
       partition,
       born: version,
-      stats: computeStats(live),
+      stats: computeStats(records),
       optimized: true,
-    },
-  };
-  const actions: Action[] = liveIds.map((id) => ({
-    kind: "remove" as const,
-    path: id,
-    dataChange: false,
-  }));
-  actions.push({ kind: "add", path: cid, dataChange: false });
+    };
+    actions.push({ kind: "add", path: cid, dataChange: false });
+  }
   actions.push({
     kind: "commitInfo",
     operation: "OPTIMIZE",
-    metrics: { numRemovedFiles: liveIds.length, numAddedFiles: 1 },
+    metrics: { numRemovedFiles: removedIds.length, numAddedFiles: addedIds.length },
   });
   return commit(s, {
     version,
@@ -409,23 +428,31 @@ export function optimize(s: TableState): TableState {
     dataFiles,
     logText:
       "Optimized " +
-      liveIds.length +
-      " file(s)" +
+      removedIds.length +
+      " file(s) across " +
+      targets.length +
+      " partition(s)" +
       (hasDv ? " (applying deletion vectors)" : "") +
-      " into " +
-      cid +
-      " → version " +
+      " → " +
+      addedIds.length +
+      " file(s), version " +
       version +
       ".",
     lastStep: {
       op: "optimize",
       title: "OPTIMIZE → version " + version,
-      body: "OPTIMIZE bin-packs many small files into one, applying any deletion vectors as it goes. It is a `dataChange: false` commit: the logical table is unchanged, so streaming readers can skip it. The old files stay on disk until VACUUM, so time travel keeps working.",
+      body: "OPTIMIZE bin-packs small files into one per partition, applying any deletion vectors as it goes — it never mixes partitions. It is a `dataChange: false` commit: the logical table is unchanged, so streaming readers can skip it. The old files stay on disk until VACUUM, so time travel keeps working.",
       bullets: [
-        liveIds.length + " file(s) removed, 1 compacted file added: " + cid,
+        removedIds.length +
+          " file(s) in " +
+          targets.length +
+          " partition(s) rewritten into " +
+          addedIds.length +
+          " file(s): " +
+          (addedIds.join(", ") || "none"),
         hasDv
-          ? "deletion vectors baked in; " + live.length + " live rows remain"
-          : live.length + " live rows in one file",
+          ? "deletion vectors baked in; " + liveRows + " live rows remain"
+          : liveRows + " live rows repacked",
         "commit marked dataChange: false (no logical change)",
         "old files persist until you VACUUM",
       ],
@@ -480,11 +507,12 @@ export function vacuum(s: TableState): TableState {
     lastStep: {
       op: "vacuum",
       title: "VACUUM reclaimed " + (gcD + gcX) + " file(s)",
-      body: "VACUUM physically deletes data files that were tombstoned (removed) and are no longer reachable from the current version. It writes no commit — the log is unchanged. But time travel to older versions that needed those files now breaks: their data is gone.",
+      body: "VACUUM physically deletes data files that were tombstoned (removed) and are older than the retention window (default 7 days; this demo uses 0 so you see the effect immediately). It writes no commit — the log is unchanged. But time travel to older versions that needed those files now breaks: their data is gone.",
       bullets: [
         gcD + " data file(s) deleted from disk",
         gcX + " deletion vector(s) cleaned up",
         "no new version — VACUUM does not commit to the log",
+        "default retention is 7 days; here it is 0 for the demo",
         "time travel to versions needing the deleted files no longer works",
       ],
     },

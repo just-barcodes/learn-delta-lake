@@ -80,12 +80,17 @@ describe("deletion-vector delete (advanced mode)", () => {
 });
 
 describe("optimize", () => {
-  it("bin-packs live files into one and tombstones the rest", () => {
+  it("bin-packs live files within each partition and never mixes partitions", () => {
+    // initial d1,d2 are in partition 2026-01; the append lands d3 in 2026-02
     const appended = ops.append({ ...initialState(), appendRows: 6 });
     const s = ops.optimize(appended);
     expect(s.current).toBe(2);
-    expect(liveFileIds(s, 2).size).toBe(1);
+    // 2026-01 (d1+d2) compacts to one file; 2026-02 (single d3) is left untouched
+    expect(liveFileIds(s, 2).size).toBe(2);
     expect(liveRowCount(s, 2)).toBe(liveRowCount(appended, 1));
+    // every live file still belongs to exactly one partition — no cross-partition merge
+    const parts = new Set([...liveFileIds(s, 2)].map((id) => s.dataFiles[id].partition));
+    expect(parts).toEqual(new Set(["2026-01", "2026-02"]));
     const info = s.commits[2].actions.find((a) => a.kind === "commitInfo");
     expect(info).toBeTruthy();
     // dataChange:false — logical table unchanged

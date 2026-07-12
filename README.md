@@ -101,7 +101,7 @@ The five operations map to Delta commands:
 | -------------- | --------------------------------------------------------------------------- |
 | **Append**     | INSERT: new Parquet files + one commit of `add` actions → a new version.    |
 | **Delete**     | Copy-on-write (`remove` + rewritten `add`) or a deletion vector (mask).     |
-| **Optimize**   | Bin-pack small files into one (`dataChange: false`); old files linger.      |
+| **Optimize**   | Bin-pack small files per partition (`dataChange: false`); old files linger. |
 | **Vacuum**     | Physically delete tombstoned files. No new version; ends stale time travel. |
 | **Checkpoint** | Snapshot the live-file set; readers then skip replay-from-zero.             |
 

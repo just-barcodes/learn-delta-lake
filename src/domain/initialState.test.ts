@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "./initialState";
+import { SCHEMA_FIELDS } from "./schema";
 
 describe("initialState", () => {
   it("starts at version 0, viewing current", () => {
@@ -24,6 +25,17 @@ describe("initialState", () => {
     expect(s.dataFiles.d1.records).toHaveLength(3);
     expect(s.dataFiles.d2.records).toHaveLength(3);
     expect(s.dataFiles.d1.partition).toBe("2026-01");
+  });
+
+  it("records every partition column in the table schema (Delta has no hidden transforms)", () => {
+    const s = initialState();
+    const meta = s.commits[0].actions.find((a) => a.kind === "metaData")!;
+    if (meta.kind !== "metaData") throw new Error("expected metaData action");
+    // A Delta partition column must be a real column of the schema.
+    for (const col of meta.partitionBy) expect(meta.schema).toContain(col);
+    // order_month is modelled as a generated column derived from order_date.
+    const gen = SCHEMA_FIELDS.find((f) => f.name === "order_month");
+    expect(gen?.generated).toContain("order_date");
   });
 
   it("has no deletion vectors, no checkpoints, and copy-on-write deletes", () => {

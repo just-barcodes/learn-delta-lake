@@ -1,6 +1,6 @@
 import { tsMs } from "../domain/ids";
 import { commitAt, liveFileIds, liveFilesAt, liveRecords } from "../domain/replay";
-import { ORDER_COLS, TABLE_ID } from "../domain/schema";
+import { ORDER_COLS, SCHEMA_FIELDS, TABLE_ID } from "../domain/schema";
 import type { Action, FileStats, NodeKind, OrderRecord, TableState } from "../domain/types";
 
 type Align = "left" | "right";
@@ -101,7 +101,15 @@ function actionObject(a: Action, state: TableState): object {
           format: { provider: "parquet", options: {} },
           schemaString: JSON.stringify({
             type: "struct",
-            fields: a.schema.map((name) => ({ name, type: "string", nullable: true })),
+            fields: a.schema.map((name) => {
+              const f = SCHEMA_FIELDS.find((x) => x.name === name);
+              return {
+                name,
+                type: f?.type ?? "string",
+                nullable: f?.nullable ?? true,
+                metadata: f?.generated ? { "delta.generationExpression": f.generated } : {},
+              };
+            }),
           }),
           partitionColumns: a.partitionBy,
           configuration: {},
