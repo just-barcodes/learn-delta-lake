@@ -1,6 +1,14 @@
 import { tsMs } from "../domain/ids";
-import { commitAt, liveFileIds, liveFilesAt, liveRecords } from "../domain/replay";
-import { ORDER_COLS, SCHEMA_FIELDS, TABLE_ID } from "../domain/schema";
+import {
+  commitAt,
+  deletedIdsAt,
+  liveFileIds,
+  liveFilesAt,
+  protocolAt,
+  schemaIdAt,
+} from "../domain/replay";
+import { GEN_MONTH, TABLE_ID } from "../domain/schema";
+import { fieldInSchema, SCHEMA_DEFS, type SchemaField } from "../domain/schemas";
 import type { Action, FileStats, NodeKind, OrderRecord, TableState } from "../domain/types";
 
 type Align = "left" | "right";
@@ -60,16 +68,61 @@ export type InspectorModel =
       showRaw: boolean;
     });
 
-const cols: GridColumn[] = ORDER_COLS.map((c) => ({ label: c.label, align: c.align }));
+/** A record paired with the schema version of the file it came from (for schema-on-read). */
+interface TaggedRecord {
+  rec: OrderRecord;
+  schemaId: number;
+}
 
-/** Sort records by id and mark rows present in `deletedSet` as struck-through. */
-function gridRows(records: OrderRecord[], deletedSet: Set<number> | null): GridRow[] {
+/** Materialize a version's rows, tagged with each row's source-file schema version. */
+function materializeTagged(
+  state: TableState,
+  version: number,
+): { live: TaggedRecord[]; deleted: TaggedRecord[] } {
+  const files = liveFilesAt(state, version);
+  const del = deletedIdsAt(state, version);
+  const live: TaggedRecord[] = [];
+  const deleted: TaggedRecord[] = [];
+  for (const path of files.keys()) {
+    const f = state.dataFiles[path];
+    if (!f) continue;
+    for (const r of f.records) {
+      (del.has(r.order_id) ? deleted : live).push({ rec: r, schemaId: f.schemaId });
+    }
+  }
+  return { live, deleted };
+}
+
+/** Grid header columns for a schema version's fields, in order. */
+function gridCols(fields: SchemaField[]): GridColumn[] {
+  return fields.map((f) => ({ label: f.name, align: f.align }));
+}
+
+/**
+ * Project one record through the active schema. A field the record's source file
+ * predates (added later) reads back as "null": Delta resolves files by column id, so
+ * a rename just relabels the same column and an added column backfills null.
+ */
+function projectCells(t: TaggedRecord, fields: SchemaField[]): GridCell[] {
+  return fields.map((f) => ({
+    value: fieldInSchema(f.id, t.schemaId) ? String(t.rec[f.key]) : "null",
+    align: f.align,
+    mono: f.mono,
+  }));
+}
+
+/** Sort tagged records by id, project through `fields`, and mark deleted rows. */
+function gridRows(
+  records: TaggedRecord[],
+  deletedSet: Set<number> | null,
+  fields: SchemaField[],
+): GridRow[] {
   return records
     .slice()
-    .sort((a, b) => a.order_id - b.order_id)
+    .sort((a, b) => a.rec.order_id - b.rec.order_id)
     .map((r) => ({
-      deleted: !!(deletedSet && deletedSet.has(r.order_id)),
-      cells: ORDER_COLS.map((c) => ({ value: String(r[c.key]), align: c.align, mono: c.mono })),
+      deleted: !!(deletedSet && deletedSet.has(r.rec.order_id)),
+      cells: projectCells(r, fields),
     }));
 }
 
@@ -94,27 +147,36 @@ function actionObject(a: Action, state: TableState): object {
           ...(a.features.length ? { readerFeatures: a.features, writerFeatures: a.features } : {}),
         },
       };
-    case "metaData":
+    case "metaData": {
+      const def = SCHEMA_DEFS[a.schemaId];
+      const cm = !!protocolAt(state, state.selected)?.features.includes("columnMapping");
+      const field = (id: number, name: string, type: string, nullable: boolean, generated?: string) => ({
+        name,
+        type,
+        nullable,
+        metadata: {
+          ...(generated ? { "delta.generationExpression": generated } : {}),
+          ...(cm ? { "delta.columnMapping.id": id, "delta.columnMapping.physicalName": "col-" + id } : {}),
+        },
+      });
       return {
         metaData: {
           id: TABLE_ID,
           format: { provider: "parquet", options: {} },
           schemaString: JSON.stringify({
             type: "struct",
-            fields: a.schema.map((name) => {
-              const f = SCHEMA_FIELDS.find((x) => x.name === name);
-              return {
-                name,
-                type: f?.type ?? "string",
-                nullable: f?.nullable ?? true,
-                metadata: f?.generated ? { "delta.generationExpression": f.generated } : {},
-              };
-            }),
+            fields: [
+              ...def.fields.map((f) => field(f.id, f.name, f.type, f.nullable)),
+              field(def.maxColumnId + 1, GEN_MONTH.name, GEN_MONTH.type, GEN_MONTH.nullable, GEN_MONTH.generated),
+            ],
           }),
           partitionColumns: a.partitionBy,
-          configuration: {},
+          configuration: cm
+            ? { "delta.columnMapping.mode": "name", "delta.columnMapping.maxColumnId": String(def.maxColumnId) }
+            : {},
         },
       };
+    }
     case "add": {
       const f = state.dataFiles[a.path];
       return {
@@ -161,21 +223,25 @@ export function buildInspector(state: TableState): InspectorModel {
   if (!state.inspect) return { open: false };
   const { kind, id } = state.inspect;
   const advanced = state.level === "advanced";
+  // Grids project through the schema in effect at the version being viewed (schema-on-read).
+  const selSchemaId = schemaIdAt(state, state.selected);
+  const fields = SCHEMA_DEFS[selSchemaId].fields;
+  const cols = gridCols(fields);
 
   if (kind === "table") {
-    const { live, deleted } = liveRecords(state, state.selected);
+    const { live, deleted } = materializeTagged(state, state.selected);
     const all = [...live, ...deleted];
-    const dset = new Set(deleted.map((r) => r.order_id));
+    const dset = new Set(deleted.map((t) => t.rec.order_id));
     const dfCount = liveFileIds(state, state.selected).size;
     return {
       open: true,
       pillKind: "version",
       pill: "TABLE",
       title: "orders",
-      subtitle: "materialized table @ v" + state.selected,
+      subtitle: "materialized table @ v" + state.selected + " · schema-v" + selSchemaId,
       view: "grid",
       cols,
-      rows: gridRows(all, dset),
+      rows: gridRows(all, dset, fields),
       caption: deleted.length
         ? live.length +
           " live rows. " +
@@ -229,6 +295,8 @@ export function buildInspector(state: TableState): InspectorModel {
     if (!f) return { open: false };
     const activeDv = liveFilesAt(state, state.selected).get(f.id);
     const masked = activeDv ? new Set(state.deletionVectors[activeDv]?.deletedIds ?? []) : null;
+    const tagged = f.records.map((r) => ({ rec: r, schemaId: f.schemaId }));
+    const olderSchema = f.schemaId < selSchemaId;
     return {
       open: true,
       pillKind: "data",
@@ -240,16 +308,22 @@ export function buildInspector(state: TableState): InspectorModel {
         f.size +
         " MB · part=" +
         f.partition +
+        " · schema-v" +
+        f.schemaId +
         (f.optimized ? " · optimized" : "") +
         (activeDv ? " · DV " + activeDv : ""),
       view: "grid",
       cols,
-      rows: gridRows(f.records, masked),
-      caption: activeDv
-        ? "Raw contents of this immutable Parquet file. Rows struck through are masked by deletion vector " +
-          activeDv +
-          " and dropped at read time — the file itself is never edited."
-        : "Raw contents of this immutable Parquet file. Delta never edits a data file; deletes rewrite it (copy-on-write) or mask it with a deletion vector.",
+      rows: gridRows(tagged, masked, fields),
+      caption: olderSchema
+        ? "This file was written under schema-v" +
+          f.schemaId +
+          ", before the version you are viewing. It is never rewritten: Delta resolves it by column id, so columns added since read back as null and a rename just relabels the same column."
+        : activeDv
+          ? "Raw contents of this immutable Parquet file. Rows struck through are masked by deletion vector " +
+            activeDv +
+            " and dropped at read time — the file itself is never edited."
+          : "Raw contents of this immutable Parquet file. Delta never edits a data file; deletes rewrite it (copy-on-write) or mask it with a deletion vector.",
       stats: advanced
         ? "add.stats · order_id min " +
           f.stats.min.order_id +

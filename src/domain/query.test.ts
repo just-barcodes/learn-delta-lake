@@ -59,6 +59,7 @@ describe("row matching", () => {
     amount: "CHF 500.00",
     order_date: "2026-02-11",
     status: "paid",
+    region: "AMER",
   };
   it("compares numeric and date predicates", () => {
     expect(rowMatches(r, { col: "order_id", op: ">=", val: "1005" })).toBe(true);

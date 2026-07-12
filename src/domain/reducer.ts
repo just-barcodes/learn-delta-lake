@@ -13,6 +13,7 @@ export type Action =
   | { type: "optimize" }
   | { type: "vacuum" }
   | { type: "checkpoint" }
+  | { type: "evolveSchema" }
   | { type: "reset" }
   | { type: "setLevel"; level: DetailLevel }
   | { type: "setDeleteMode"; mode: DeleteMode }
@@ -51,6 +52,8 @@ export function reducer(state: TableState, action: Action): TableState {
       return ops.vacuum(state);
     case "checkpoint":
       return ops.checkpoint(state);
+    case "evolveSchema":
+      return ops.evolveSchema(state);
     case "reset":
       return ops.reset(state);
     case "setLevel":

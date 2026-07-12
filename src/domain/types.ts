@@ -5,7 +5,7 @@
 // it: (all `add`s) − (all `remove`s), read through the latest metaData/protocol.
 
 /** The operations a commit can represent. `vacuum` and `checkpoint` mutate the log without adding a version. */
-export type Operation = "append" | "delete" | "optimize" | "vacuum" | "checkpoint";
+export type Operation = "append" | "delete" | "optimize" | "vacuum" | "checkpoint" | "schema";
 
 /** DELETE strategy: copy-on-write rewrites files; deletion-vector masks row positions (merge-on-read). */
 export type DeleteMode = "cow" | "dv";
@@ -17,6 +17,8 @@ export interface OrderRecord {
   amount: string;
   order_date: string;
   status: string;
+  /** Added by schema evolution; older files predate it and read back as null. */
+  region: string;
 }
 
 /** The queryable columns and their comparison operators used by the data-skipping planner. */
@@ -43,6 +45,8 @@ export interface DataFile {
   /** partitionValues, e.g. "2026-01" for order_month. */
   partition: string;
   born: number;
+  /** The schema version this file was written under; older ones resolve columns by id at read time. */
+  schemaId: number;
   /** Column stats recorded when the file was written (see FileStats). */
   stats: FileStats;
   optimized?: boolean;
@@ -61,7 +65,7 @@ export interface DeletionVector {
 /** One entry inside a commit file. A discriminated union over Delta's action types. */
 export type Action =
   | { kind: "protocol"; minReader: number; minWriter: number; features: string[] }
-  | { kind: "metaData"; schema: string[]; partitionBy: string[] }
+  | { kind: "metaData"; schema: string[]; partitionBy: string[]; schemaId: number }
   | { kind: "add"; path: string; dataChange: boolean; dv?: string | null }
   | { kind: "remove"; path: string; dataChange: boolean }
   | { kind: "commitInfo"; operation: string; metrics: Record<string, number> };
@@ -141,6 +145,10 @@ export interface TableState {
   current: number;
   /** The version currently being viewed (differs from `current` while time-travelling). */
   selected: number;
+  /** The table's current schema version (advanced by schema evolution). */
+  schemaId: number;
+  /** Schema versions the table has moved through, in order (for the metaData history). */
+  schemas: number[];
   /** DELETE strategy toggle (advanced level). */
   deleteMode: DeleteMode;
   inspect: Inspect | null;

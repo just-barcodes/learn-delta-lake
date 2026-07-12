@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "./initialState";
-import { SCHEMA_FIELDS } from "./schema";
+import { GEN_MONTH } from "./schema";
 
 describe("initialState", () => {
   it("starts at version 0, viewing current", () => {
@@ -34,8 +34,8 @@ describe("initialState", () => {
     // A Delta partition column must be a real column of the schema.
     for (const col of meta.partitionBy) expect(meta.schema).toContain(col);
     // order_month is modelled as a generated column derived from order_date.
-    const gen = SCHEMA_FIELDS.find((f) => f.name === "order_month");
-    expect(gen?.generated).toContain("order_date");
+    expect(GEN_MONTH.name).toBe("order_month");
+    expect(GEN_MONTH.generated).toContain("order_date");
   });
 
   it("has no deletion vectors, no checkpoints, and copy-on-write deletes", () => {
@@ -55,6 +55,7 @@ describe("initialState", () => {
       amount: "CHF 1.00",
       order_date: "2026-01-01",
       status: "paid",
+      region: "EMEA",
     });
     expect(b.dataFiles.d1.records).toHaveLength(3);
   });

@@ -4,6 +4,7 @@ import { ActionButton } from "./toolbar/ActionButton";
 import { AppendControl } from "./toolbar/AppendControl";
 import { DeleteModeToggle } from "./toolbar/DeleteModeToggle";
 import { QueryPlanner } from "./toolbar/QueryPlanner";
+import { SchemaEvolve } from "./toolbar/SchemaEvolve";
 import { ViewBadge } from "./toolbar/ViewBadge";
 import "./toolbar.css";
 
@@ -53,6 +54,7 @@ export function Toolbar({ state, dispatch }: Props) {
             onClick={() => dispatch({ type: "checkpoint" })}
           />
         ) : null}
+        {showAdvanced ? <SchemaEvolve state={state} dispatch={dispatch} /> : null}
         {showAdvanced ? <DeleteModeToggle state={state} dispatch={dispatch} /> : null}
         {showAdvanced ? <QueryPlanner state={state} dispatch={dispatch} /> : null}
       </div>

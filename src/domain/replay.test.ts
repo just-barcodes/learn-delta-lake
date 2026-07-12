@@ -18,8 +18,9 @@ function file(id: string, startId: number, n: number, born: number): DataFile {
     amount: "CHF 100.00",
     order_date: "2026-01-05",
     status: "paid",
+    region: "EMEA",
   }));
-  return { id, records, size: n, partition: "2026-01", born, stats: computeStats(records) };
+  return { id, records, size: n, partition: "2026-01", born, schemaId: 0, stats: computeStats(records) };
 }
 
 function commit(version: number, op: Commit["op"], actions: Action[]): Commit {
@@ -35,7 +36,7 @@ function scriptedState(): TableState {
     commits: [
       commit(0, "append", [
         { kind: "protocol", minReader: 1, minWriter: 2, features: [] },
-        { kind: "metaData", schema: ["order_id"], partitionBy: ["order_month"] },
+        { kind: "metaData", schema: ["order_id"], partitionBy: ["order_month"], schemaId: 0 },
         { kind: "add", path: "d1", dataChange: true },
         { kind: "add", path: "d2", dataChange: true },
       ]),
@@ -61,6 +62,8 @@ function scriptedState(): TableState {
     },
     current: 3,
     selected: 3,
+    schemaId: 0,
+    schemas: [0],
     deleteMode: "cow",
     inspect: null,
     picker: null,

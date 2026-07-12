@@ -1,6 +1,6 @@
 import { clock } from "./ids";
 import { genRecords, type OrderIdCounter } from "./records";
-import { BASE_PROTOCOL, PARTITION_COLS, SCHEMA_COLS } from "./schema";
+import { BASE_PROTOCOL, PARTITION_COLS, schemaColNames } from "./schema";
 import { computeStats } from "./stats";
 import type { TableState } from "./types";
 
@@ -21,7 +21,7 @@ export function initialState(): TableState {
         ts: clock(0),
         actions: [
           { kind: "protocol", ...BASE_PROTOCOL },
-          { kind: "metaData", schema: SCHEMA_COLS, partitionBy: PARTITION_COLS },
+          { kind: "metaData", schema: schemaColNames(0), partitionBy: PARTITION_COLS, schemaId: 0 },
           { kind: "add", path: "d1", dataChange: true },
           { kind: "add", path: "d2", dataChange: true },
           {
@@ -40,6 +40,7 @@ export function initialState(): TableState {
         size: 4,
         partition: "2026-01",
         born: 0,
+        schemaId: 0,
         stats: computeStats(d1),
       },
       d2: {
@@ -48,12 +49,15 @@ export function initialState(): TableState {
         size: 4,
         partition: "2026-01",
         born: 0,
+        schemaId: 0,
         stats: computeStats(d2),
       },
     },
     deletionVectors: {},
     current: 0,
     selected: 0,
+    schemaId: 0,
+    schemas: [0],
     deleteMode: "cow",
     inspect: null,
     picker: null,

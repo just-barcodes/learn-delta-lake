@@ -2,7 +2,8 @@
 
 An interactive visualization of what happens _inside_ a Delta Lake table as you
 run commits. Append, delete (copy-on-write or deletion vectors), OPTIMIZE, VACUUM,
-and write a checkpoint, then watch how the transaction log and data files rewire.
+evolve the schema, and write a checkpoint, then watch how the transaction log and
+data files rewire.
 Click any node to inspect it; click a version to time-travel. Supports light and
 dark mode.
 
@@ -37,8 +38,9 @@ each level teaches one layer:
   its delta), OPTIMIZE / VACUUM / Checkpoint, checkpoint cards on the log spine,
   and more panel detail.
 - **Advanced** — the physical/optimization layer: the copy-on-write ↔ deletion-
-  vector delete toggle, the data-skipping query planner, per-column `add.stats`,
-  and the raw commit / deletion-vector / checkpoint JSON.
+  vector delete toggle, schema evolution (add / rename / drop / widen columns,
+  resolved by column-mapping id), the data-skipping query planner, per-column
+  `add.stats`, and the raw commit / deletion-vector / checkpoint JSON.
 
 ## Getting started
 
@@ -70,7 +72,8 @@ src/
   domain/       Pure Delta model — no React, no DOM
     types.ts          TableState, Commit, Action union, Checkpoint, DeletionVector
     records.ts        Deterministic order-record generation
-    ids.ts, schema.ts Stable clocks/log-file names and the table schema/protocol
+    ids.ts, schema.ts Stable clocks/log-file names, generated partition column, protocol
+    schemas.ts        Schema versions + column-mapping id resolution (schema evolution)
     initialState.ts   The table's starting point (commit 0)
     replay.ts         The heart: reconstruct any version by replaying add − remove
     stats.ts          Per-column min/max/nullCount (Delta's inline add.stats)
@@ -95,15 +98,16 @@ A `TableState` holds the `commits` (the log), `checkpoints`, `dataFiles`, and
 state. Every operation is a pure function `TableState → TableState`, dispatched
 through a reducer. The UI is a pure projection of this state.
 
-The five operations map to Delta commands:
+The six operations map to Delta commands:
 
-| Operation      | What it does                                                                |
-| -------------- | --------------------------------------------------------------------------- |
-| **Append**     | INSERT: new Parquet files + one commit of `add` actions → a new version.    |
-| **Delete**     | Copy-on-write (`remove` + rewritten `add`) or a deletion vector (mask).     |
-| **Optimize**   | Bin-pack small files per partition (`dataChange: false`); old files linger. |
-| **Vacuum**     | Physically delete tombstoned files. No new version; ends stale time travel. |
-| **Checkpoint** | Snapshot the live-file set; readers then skip replay-from-zero.             |
+| Operation      | What it does                                                                     |
+| -------------- | ------------------------------------------------------------------------------- |
+| **Append**     | INSERT: new Parquet files + one commit of `add` actions → a new version.        |
+| **Delete**     | Copy-on-write (`remove` + rewritten `add`) or a deletion vector (mask).         |
+| **Optimize**   | Bin-pack small files per partition (`dataChange: false`); old files linger.     |
+| **Vacuum**     | Physically delete tombstoned files. No new version; ends stale time travel.     |
+| **Schema**     | Evolve columns via a `metaData` commit; rename/drop need column mapping.        |
+| **Checkpoint** | Snapshot the live-file set; readers then skip replay-from-zero.                 |
 
 ### Theming
 

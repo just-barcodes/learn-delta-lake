@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "./initialState";
 import * as ops from "./operations";
-import { liveFileIds, liveRowCount, protocolAt } from "./replay";
+import { liveFileIds, liveRowCount, protocolAt, schemaIdAt } from "./replay";
+import { fieldInSchema, SCHEMA_DEFS } from "./schemas";
 import type { TableState } from "./types";
 
 /** Select the given order ids in the picker, mapped to the file that holds each. */
@@ -144,6 +145,48 @@ describe("checkpoint", () => {
     const s = ops.checkpoint(ops.checkpoint(ops.append(initialState())));
     expect(s.checkpoints).toHaveLength(1);
     expect(s.lastStep.title).toMatch(/already exists/i);
+  });
+});
+
+describe("schema evolution", () => {
+  it("commits a new version with an updated metaData; ADD COLUMN needs no protocol change", () => {
+    const s = ops.evolveSchema(initialState());
+    expect(s.current).toBe(1); // schema change IS a commit in Delta (unlike Iceberg)
+    expect(s.schemaId).toBe(1);
+    expect(s.commits[1].actions.some((a) => a.kind === "metaData")).toBe(true);
+    expect(s.commits[1].actions.some((a) => a.kind === "protocol")).toBe(false);
+    // region (id 6) exists from schema 1 on, not before
+    expect(fieldInSchema(6, 0)).toBe(false);
+    expect(fieldInSchema(6, 1)).toBe(true);
+    expect(schemaIdAt(s, 1)).toBe(1);
+  });
+
+  it("renaming a column upgrades the protocol with column mapping", () => {
+    const s = ops.evolveSchema(ops.evolveSchema(initialState())); // add region, then rename
+    expect(s.schemaId).toBe(2);
+    expect(protocolAt(s, s.current)?.features).toContain("columnMapping");
+  });
+
+  it("widening a type adds the type-widening feature", () => {
+    let s = initialState();
+    for (let i = 0; i < 4; i++) s = ops.evolveSchema(s); // through the widen change
+    expect(s.schemaId).toBe(4);
+    expect(protocolAt(s, s.current)?.features).toContain("typeWidening");
+  });
+
+  it("tags newly-appended files with the current schema; old files keep theirs", () => {
+    const s = ops.append(ops.evolveSchema(initialState()));
+    const fresh = Object.values(s.dataFiles).find((f) => f.born === s.current)!;
+    expect(fresh.schemaId).toBe(1);
+    expect(s.dataFiles.d1.schemaId).toBe(0); // original file unchanged
+  });
+
+  it("refuses past the last schema version", () => {
+    let s = initialState();
+    for (let i = 0; i < SCHEMA_DEFS.length - 1; i++) s = ops.evolveSchema(s);
+    const again = ops.evolveSchema(s);
+    expect(again.current).toBe(s.current); // no new version
+    expect(again.lastStep.title).toMatch(/latest schema/i);
   });
 });
 

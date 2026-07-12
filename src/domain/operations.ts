@@ -2,7 +2,8 @@ import { clock } from "./ids";
 import { initialState } from "./initialState";
 import { genRecords, type OrderIdCounter } from "./records";
 import { deletedIdsAt, liveFilesAt, liveRowCount, protocolAt } from "./replay";
-import { DV_PROTOCOL } from "./schema";
+import { DV_PROTOCOL, PARTITION_COLS, schemaColNames } from "./schema";
+import { SCHEMA_DEFS } from "./schemas";
 import { computeStats } from "./stats";
 import type {
   Action,
@@ -84,6 +85,7 @@ export function append(s: TableState): TableState {
       size: Math.max(1, cnt),
       partition: month,
       born: version,
+      schemaId: s.schemaId,
       stats: computeStats(records),
     };
     actions.push({ kind: "add", path: id, dataChange: true });
@@ -239,6 +241,7 @@ function cowDelete(
         size: Math.max(1, survivors.length),
         partition: orig.partition,
         born: version,
+        schemaId: s.schemaId,
         stats: computeStats(survivors),
       };
       actions.push({ kind: "add", path: id, dataChange: true });
@@ -410,6 +413,7 @@ export function optimize(s: TableState): TableState {
       size: Math.max(2, size),
       partition,
       born: version,
+      schemaId: s.schemaId,
       stats: computeStats(records),
       optimized: true,
     };
@@ -567,6 +571,82 @@ export function checkpoint(s: TableState): TableState {
       ],
     },
   };
+}
+
+// ---- schema evolution ---------------------------------------------------
+
+/**
+ * Evolve the schema by one version. Unlike Iceberg (a metadata-only bump with no
+ * snapshot), in Delta a schema change is a real commit: a new version whose only
+ * actions are an updated `metaData` (and, when the change needs a table feature like
+ * column mapping or type widening, a `protocol` upgrade). No data is rewritten.
+ */
+export function evolveSchema(s: TableState): TableState {
+  const next = s.schemaId + 1;
+  if (next >= SCHEMA_DEFS.length) {
+    return {
+      ...s,
+      lastStep: {
+        op: "schema",
+        title: "Already at the latest schema",
+        body: "Every schema change in this demo has been applied. Column-mapping ids are never reused, so a dropped column cannot come back — reset the table to start the sequence over.",
+        bullets: [],
+      },
+    };
+  }
+  const def = SCHEMA_DEFS[next];
+  const version = s.current + 1;
+  const proto = protocolAt(s, s.current);
+  const feature = def.change.feature;
+  const needsFeature = !!feature && !proto?.features.includes(feature);
+  const actions: Action[] = [];
+  if (needsFeature) {
+    // Adding a table feature moves the table onto table-features protocol (reader 3 / writer 7).
+    const features = [...new Set([...(proto?.features ?? []), feature!])];
+    actions.push({
+      kind: "protocol",
+      minReader: Math.max(3, proto?.minReader ?? 1),
+      minWriter: Math.max(7, proto?.minWriter ?? 2),
+      features,
+    });
+  }
+  actions.push({
+    kind: "metaData",
+    schema: schemaColNames(next),
+    partitionBy: PARTITION_COLS,
+    schemaId: next,
+  });
+  actions.push({ kind: "commitInfo", operation: def.change.operation, metrics: { numColumns: def.fields.length } });
+  const featureNote = needsFeature
+    ? feature === "columnMapping"
+      ? "enabled column mapping (reader 3 / writer 7) so the change is metadata-only"
+      : "enabled type widening (writer feature) so old files need no rewrite"
+    : "no protocol change needed";
+  const committed = commit(s, {
+    version,
+    op: "schema",
+    actions,
+    counters: s.counters,
+    logText: "Schema evolution: " + def.change.text + " → metaData at version " + version + ".",
+    lastStep: {
+      op: "schema",
+      title: "Schema evolution → schema-v" + next,
+      body:
+        "Changing the schema commits a new version carrying a fresh `metaData` action — no data files are rewritten. " +
+        (def.change.kind === "add"
+          ? "Adding a column is safe by name: older files simply have no value for it, so it reads back as null."
+          : def.change.kind === "widen"
+            ? "Widening a type needs the `typeWidening` feature; existing files keep their narrower physical type and are promoted on read."
+            : "Renaming or dropping a column needs column mapping, which pins a stable id/physical name to each column so old files resolve without a rewrite."),
+      bullets: [
+        def.change.text,
+        featureNote,
+        "new version " + version + " — the change is a commit, not a metadata-only bump (unlike Iceberg)",
+        "existing data files are untouched; they resolve by column id at read time",
+      ],
+    },
+  });
+  return { ...committed, schemaId: next, schemas: [...s.schemas, next] };
 }
 
 // ---- table reset & UI state --------------------------------------------

@@ -25,6 +25,7 @@ describe("genRecords", () => {
       amount: "CHF 197.07",
       order_date: "2026-01-03",
       status: "pending",
+      region: "APAC",
     });
   });
 

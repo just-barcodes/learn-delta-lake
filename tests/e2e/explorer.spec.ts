@@ -86,6 +86,21 @@ test("simple level hides the actions column", async ({ page }) => {
   await expect(page.locator(".graph-col__head", { hasText: "Actions" })).toHaveCount(0);
 });
 
+test("schema evolution commits a new version and reads old files by column id", async ({
+  page,
+}) => {
+  await page.locator(".segmented__btn", { hasText: "Advanced" }).click();
+  // Add the region column: a metadata commit that bumps the version.
+  await page.locator(".action--evolve").click();
+  await expect(page.locator(".view-badge__value")).toHaveText("v1");
+  expect(await stat(page, "schema version")).toBe(1);
+  // The materialized table now has a region column; the original files predate it,
+  // so their rows read back as null (schema-on-read by column id).
+  await page.locator(".node--table").first().click();
+  await expect(page.locator(".modal-panel .grid__th", { hasText: "region" })).toBeVisible();
+  await expect(page.locator(".modal-panel .grid")).toContainText("null");
+});
+
 test("advanced deletion-vector delete masks rows and keeps the file", async ({ page }) => {
   await page.locator(".segmented__btn", { hasText: "Advanced" }).click();
   await page.locator(".delete-mode__btn", { hasText: "deletion vectors" }).click();

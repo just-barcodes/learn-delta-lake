@@ -9,6 +9,7 @@ export const ACCENT_VAR: Record<Operation, string> = {
   optimize: "var(--meta-line)",
   vacuum: "var(--accent-gray)",
   checkpoint: "var(--checkpoint-line)",
+  schema: "var(--meta-line)",
 };
 
 export interface StatCard {
@@ -64,6 +65,12 @@ export function buildStats(state: TableState): StatCard[] {
       label: "checkpoints",
       colorVar: "var(--checkpoint-line)",
       min: "medium",
+    },
+    {
+      value: state.schemaId,
+      label: "schema version",
+      colorVar: "var(--meta-line)",
+      min: "advanced",
     },
   ];
   return defs.filter((d) => atLeast(state.level, d.min)).map(({ min, ...card }) => card);

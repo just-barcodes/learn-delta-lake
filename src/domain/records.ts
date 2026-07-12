@@ -13,6 +13,8 @@ const CUSTOMERS = [
 
 const STATUSES = ["paid", "pending", "shipped", "refunded"];
 
+const REGIONS = ["EMEA", "AMER", "APAC"];
+
 /** A mutable order-id counter threaded through record generation. */
 export interface OrderIdCounter {
   oid: number;
@@ -39,6 +41,7 @@ export function genRecords(n: number, opts: GenOptions, ctr: OrderIdCounter): Or
       amount: "CHF " + (((id * 37) % 900) + 60) + "." + String((id * 7) % 100).padStart(2, "0"),
       order_date: opts.month + "-" + String(day).padStart(2, "0"),
       status: STATUSES[id % STATUSES.length],
+      region: REGIONS[id % REGIONS.length],
     });
   }
   return out;

@@ -103,6 +103,16 @@ export function metadataAt(
   return found;
 }
 
+/** The schema version in effect at a version (latest `metaData` action's schemaId ≤ version). */
+export function schemaIdAt(state: TableState, version: number): number {
+  let found = 0;
+  for (const c of state.commits) {
+    if (c.version > version) continue;
+    for (const a of c.actions) if (a.kind === "metaData") found = a.schemaId;
+  }
+  return found;
+}
+
 /** The reader/writer protocol in effect at a version (latest `protocol` action ≤ version). */
 export function protocolAt(
   state: TableState,
