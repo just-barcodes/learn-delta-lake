@@ -30,7 +30,9 @@ export function DeletePicker({ state, dispatch }: Props) {
   return (
     <Modal onClose={cancel} width={560}>
       <div className="modal-head">
-        <span className={"pill " + (update ? "node--data" : "node--remove")}>{verb.toUpperCase()}</span>
+        <span className={"pill " + (update ? "node--data" : "node--remove")}>
+          {verb.toUpperCase()}
+        </span>
         <div className="modal-head__titles">
           <div className="modal-head__title">{verb} rows</div>
           <div className="modal-head__subtitle">{subtitle}</div>
@@ -113,9 +115,7 @@ export function DeletePicker({ state, dispatch }: Props) {
             disabled={!canApply}
             onClick={confirm}
           >
-            {canApply
-              ? `${verb} ${model.count} row${model.count === 1 ? "" : "s"}`
-              : "Select rows"}
+            {canApply ? `${verb} ${model.count} row${model.count === 1 ? "" : "s"}` : "Select rows"}
           </button>
         </div>
       </div>

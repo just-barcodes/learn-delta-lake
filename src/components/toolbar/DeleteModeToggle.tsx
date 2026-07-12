@@ -29,7 +29,10 @@ export function DeleteModeToggle({ state, dispatch }: Props) {
           </button>
         ))}
       </div>
-      <span className="delete-mode__note" title="Historically Delta defaulted to copy-on-write; recent versions increasingly enable deletion vectors by default.">
+      <span
+        className="delete-mode__note"
+        title="Historically Delta defaulted to copy-on-write; recent versions increasingly enable deletion vectors by default."
+      >
         modern Delta increasingly defaults to DVs
       </span>
     </div>
