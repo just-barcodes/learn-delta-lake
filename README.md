@@ -7,7 +7,7 @@ transaction log and data files rewire.
 Click any node to inspect it; click a version to time-travel. Supports light and
 dark mode.
 
-It is the sibling of [`learn-apache-iceberg`](../learn-apache-iceberg): same
+It is the sibling of [`learn-apache-iceberg`](https://github.com/just-barcodes/learn-apache-iceberg): same
 architecture and teaching approach, but it models **Delta Lake's transaction log**
 instead of Iceberg's snapshot/manifest tree.
 
