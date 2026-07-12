@@ -564,7 +564,10 @@ function dvUpdate(
         (upgraded ? " Enabling DVs bumps the table protocol to reader 3 / writer 7." : ""),
       bullets: [
         "set status=" + UPDATE_STATUS + " on " + updatedIds.length + " row(s)",
-        newDvIds.length + " DV(s) mask the old rows in " + targets.length + " file(s) (left on disk)",
+        newDvIds.length +
+          " DV(s) mask the old rows in " +
+          targets.length +
+          " file(s) (left on disk)",
         newFileIds.length + " small file(s) hold the new row versions",
         upgraded
           ? "protocol upgraded → reader 3 / writer 7 (deletionVectors)"
@@ -837,7 +840,11 @@ export function evolveSchema(s: TableState): TableState {
     partitionBy: PARTITION_COLS,
     schemaId: next,
   });
-  actions.push({ kind: "commitInfo", operation: def.change.operation, metrics: { numColumns: def.fields.length } });
+  actions.push({
+    kind: "commitInfo",
+    operation: def.change.operation,
+    metrics: { numColumns: def.fields.length },
+  });
   const featureNote = needsFeature
     ? feature === "columnMapping"
       ? "enabled column mapping (reader 3 / writer 7) so the change is metadata-only"
@@ -862,7 +869,9 @@ export function evolveSchema(s: TableState): TableState {
       bullets: [
         def.change.text,
         featureNote,
-        "new version " + version + " — the change is a commit, not a metadata-only bump (unlike Iceberg)",
+        "new version " +
+          version +
+          " — the change is a commit, not a metadata-only bump (unlike Iceberg)",
         "existing data files are untouched; they resolve by column id at read time",
       ],
     },

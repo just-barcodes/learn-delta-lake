@@ -20,7 +20,15 @@ function file(id: string, startId: number, n: number, born: number): DataFile {
     status: "paid",
     region: "EMEA",
   }));
-  return { id, records, size: n, partition: "2026-01", born, schemaId: 0, stats: computeStats(records) };
+  return {
+    id,
+    records,
+    size: n,
+    partition: "2026-01",
+    born,
+    schemaId: 0,
+    stats: computeStats(records),
+  };
 }
 
 function commit(version: number, op: Commit["op"], actions: Action[]): Commit {

@@ -6,13 +6,7 @@
 
 /** The operations a commit can represent. `vacuum` and `checkpoint` mutate the log without adding a version. */
 export type Operation =
-  | "append"
-  | "delete"
-  | "update"
-  | "optimize"
-  | "vacuum"
-  | "checkpoint"
-  | "schema";
+  "append" | "delete" | "update" | "optimize" | "vacuum" | "checkpoint" | "schema";
 
 /** DELETE strategy: copy-on-write rewrites files; deletion-vector masks row positions (merge-on-read). */
 export type DeleteMode = "cow" | "dv";

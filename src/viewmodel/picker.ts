@@ -39,7 +39,8 @@ export function buildPicker(state: TableState): PickerModel | null {
     if (!f) continue;
     const masked = dvId ? new Set(state.deletionVectors[dvId]?.deletedIds ?? []) : null;
     for (const r of f.records) {
-      if (!(masked && masked.has(r.order_id))) raw.push({ rec: r, schemaId: f.schemaId, file: fid });
+      if (!(masked && masked.has(r.order_id)))
+        raw.push({ rec: r, schemaId: f.schemaId, file: fid });
     }
   }
   raw.sort((a, b) => a.rec.order_id - b.rec.order_id);

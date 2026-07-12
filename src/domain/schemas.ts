@@ -105,7 +105,12 @@ const region = (): SchemaField => ({
  */
 export const SCHEMA_DEFS: SchemaDef[] = [
   {
-    change: { kind: "create", verb: "create the initial schema", text: "initial schema (5 columns)", operation: "CREATE TABLE" },
+    change: {
+      kind: "create",
+      verb: "create the initial schema",
+      text: "initial schema (5 columns)",
+      operation: "CREATE TABLE",
+    },
     maxColumnId: 5,
     fields: [orderId(), customer(), amount(), orderDate(), status()],
   },

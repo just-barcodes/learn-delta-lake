@@ -143,13 +143,21 @@ function actionObject(a: Action, state: TableState): object {
     case "metaData": {
       const def = SCHEMA_DEFS[a.schemaId];
       const cm = !!protocolAt(state, state.selected)?.features.includes("columnMapping");
-      const field = (id: number, name: string, type: string, nullable: boolean, generated?: string) => ({
+      const field = (
+        id: number,
+        name: string,
+        type: string,
+        nullable: boolean,
+        generated?: string,
+      ) => ({
         name,
         type,
         nullable,
         metadata: {
           ...(generated ? { "delta.generationExpression": generated } : {}),
-          ...(cm ? { "delta.columnMapping.id": id, "delta.columnMapping.physicalName": "col-" + id } : {}),
+          ...(cm
+            ? { "delta.columnMapping.id": id, "delta.columnMapping.physicalName": "col-" + id }
+            : {}),
         },
       });
       return {
@@ -160,12 +168,21 @@ function actionObject(a: Action, state: TableState): object {
             type: "struct",
             fields: [
               ...def.fields.map((f) => field(f.id, f.name, f.type, f.nullable)),
-              field(def.maxColumnId + 1, GEN_MONTH.name, GEN_MONTH.type, GEN_MONTH.nullable, GEN_MONTH.generated),
+              field(
+                def.maxColumnId + 1,
+                GEN_MONTH.name,
+                GEN_MONTH.type,
+                GEN_MONTH.nullable,
+                GEN_MONTH.generated,
+              ),
             ],
           }),
           partitionColumns: a.partitionBy,
           configuration: cm
-            ? { "delta.columnMapping.mode": "name", "delta.columnMapping.maxColumnId": String(def.maxColumnId) }
+            ? {
+                "delta.columnMapping.mode": "name",
+                "delta.columnMapping.maxColumnId": String(def.maxColumnId),
+              }
             : {},
         },
       };
