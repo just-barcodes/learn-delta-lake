@@ -5,6 +5,8 @@ import type { DeleteMode, DetailLevel, NodeKind, QueryColumn, QueryOp, TableStat
 export type Action =
   | { type: "append" }
   | { type: "openDelete" }
+  | { type: "openUpdate" }
+  | { type: "confirmUpdate" }
   | { type: "togglePick"; oid: number; file: string }
   | { type: "setRandomN"; value: string }
   | { type: "randomPick" }
@@ -36,6 +38,10 @@ export function reducer(state: TableState, action: Action): TableState {
       return ops.append(state);
     case "openDelete":
       return ops.openDelete(state);
+    case "openUpdate":
+      return ops.openUpdate(state);
+    case "confirmUpdate":
+      return ops.confirmUpdate(state);
     case "togglePick":
       return ops.togglePick(state, action.oid, action.file);
     case "setRandomN":

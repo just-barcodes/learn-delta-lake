@@ -15,7 +15,7 @@ const MODES: { key: DeleteMode; label: string }[] = [
 export function DeleteModeToggle({ state, dispatch }: Props) {
   return (
     <div className="delete-mode">
-      <span className="delete-mode__label">DELETE writes</span>
+      <span className="delete-mode__label">DELETE / UPDATE writes</span>
       <div className="delete-mode__seg" role="group" aria-label="Delete mode">
         {MODES.map((m) => (
           <button
@@ -29,6 +29,9 @@ export function DeleteModeToggle({ state, dispatch }: Props) {
           </button>
         ))}
       </div>
+      <span className="delete-mode__note" title="Historically Delta defaulted to copy-on-write; recent versions increasingly enable deletion vectors by default.">
+        modern Delta increasingly defaults to DVs
+      </span>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { clock } from "./ids";
 import { initialState } from "./initialState";
 import { genRecords, type OrderIdCounter } from "./records";
-import { deletedIdsAt, liveFilesAt, liveRowCount, protocolAt } from "./replay";
+import { liveFilesAt, liveRowCount, protocolAt } from "./replay";
 import { DV_PROTOCOL, PARTITION_COLS, schemaColNames } from "./schema";
 import { SCHEMA_DEFS } from "./schemas";
 import { computeStats } from "./stats";
@@ -141,7 +141,23 @@ export function openDelete(s: TableState): TableState {
       },
     };
   }
-  return { ...s, picker: { selected: {}, n: 3 } };
+  return { ...s, picker: { mode: "delete", selected: {}, n: 3 } };
+}
+
+/** Open the picker in UPDATE mode, unless there are no live rows to update. */
+export function openUpdate(s: TableState): TableState {
+  if (!liveRowCount(s, s.current)) {
+    return {
+      ...s,
+      lastStep: {
+        op: "update",
+        title: "Nothing to update",
+        body: "There are no live rows in the current version. Append some rows first.",
+        bullets: [],
+      },
+    };
+  }
+  return { ...s, picker: { mode: "update", selected: {}, n: 3 } };
 }
 
 export function setRandomN(s: TableState, value: string): TableState {
@@ -165,11 +181,11 @@ export function cancelPicker(s: TableState): TableState {
 /** The live (oid, file) rows selectable in the picker at the current version. */
 function liveRows(s: TableState): { oid: number; file: string }[] {
   const files = liveFilesAt(s, s.current);
-  const del = deletedIdsAt(s, s.current);
   const rows: { oid: number; file: string }[] = [];
-  for (const path of files.keys()) {
+  for (const [path, dvId] of files) {
+    const masked = dvId ? new Set(s.deletionVectors[dvId]?.deletedIds ?? []) : null;
     for (const r of s.dataFiles[path]?.records ?? []) {
-      if (!del.has(r.order_id)) rows.push({ oid: r.order_id, file: path });
+      if (!(masked && masked.has(r.order_id))) rows.push({ oid: r.order_id, file: path });
     }
   }
   return rows;
@@ -220,7 +236,7 @@ function cowDelete(
   const version = s.current + 1;
   const c = { ...s.counters };
   const dataFiles = { ...s.dataFiles };
-  const masked = deletedIdsAt(s, s.current);
+  const liveMap = liveFilesAt(s, s.current);
   const actions: Action[] = [];
   const newIds: string[] = [];
   let copied = 0;
@@ -228,7 +244,11 @@ function cowDelete(
     const orig = s.dataFiles[target];
     if (!orig) continue;
     const drop = byFile.get(target)!;
-    const survivors = orig.records.filter((r) => !drop.has(r.order_id) && !masked.has(r.order_id));
+    const dvId = liveMap.get(target);
+    const masked = dvId ? new Set(s.deletionVectors[dvId]?.deletedIds ?? []) : null;
+    const survivors = orig.records.filter(
+      (r) => !drop.has(r.order_id) && !(masked && masked.has(r.order_id)),
+    );
     actions.push({ kind: "remove", path: target, dataChange: true });
     if (survivors.length) {
       c.d++;
@@ -354,6 +374,206 @@ function dvDelete(
   });
 }
 
+// ---- update (the mechanism behind UPDATE / MERGE) ----------------------
+
+/** UPDATE sets the picked rows' `status` to this value, to make the rewrite visible. */
+const UPDATE_STATUS = "refunded";
+
+/** Commit the picked rows as an UPDATE, using the active mode. Same file mechanics as DELETE, but rows change instead of vanishing. */
+export function confirmUpdate(s: TableState): TableState {
+  const sel = s.picker ? s.picker.selected : {};
+  const entries = Object.keys(sel).map((k) => ({ order_id: Number(k), file: sel[Number(k)] }));
+  if (!entries.length) return s;
+  const byFile = new Map<string, Set<number>>();
+  for (const e of entries) {
+    const set = byFile.get(e.file) ?? new Set<number>();
+    set.add(e.order_id);
+    byFile.set(e.file, set);
+  }
+  const updatedIds = entries.map((e) => e.order_id).sort((a, b) => a - b);
+  const targets = [...byFile.keys()].sort();
+  return s.deleteMode === "cow"
+    ? cowUpdate(s, byFile, updatedIds, targets)
+    : dvUpdate(s, byFile, updatedIds, targets);
+}
+
+/** Copy-on-write UPDATE: rewrite each affected file, carrying the new values for the changed rows. */
+function cowUpdate(
+  s: TableState,
+  byFile: Map<string, Set<number>>,
+  updatedIds: number[],
+  targets: string[],
+): TableState {
+  const version = s.current + 1;
+  const c = { ...s.counters };
+  const dataFiles = { ...s.dataFiles };
+  const liveMap = liveFilesAt(s, s.current);
+  const actions: Action[] = [];
+  const newIds: string[] = [];
+  let copied = 0;
+  for (const target of targets) {
+    const orig = s.dataFiles[target];
+    if (!orig) continue;
+    const change = byFile.get(target)!;
+    const dvId = liveMap.get(target);
+    const masked = dvId ? new Set(s.deletionVectors[dvId]?.deletedIds ?? []) : null;
+    const survivors = orig.records.filter((r) => !(masked && masked.has(r.order_id)));
+    const rewritten = survivors.map((r) =>
+      change.has(r.order_id) ? { ...r, status: UPDATE_STATUS } : { ...r },
+    );
+    copied += survivors.length - change.size;
+    actions.push({ kind: "remove", path: target, dataChange: true });
+    c.d++;
+    const id = "d" + c.d;
+    newIds.push(id);
+    dataFiles[id] = {
+      id,
+      records: rewritten,
+      size: Math.max(1, rewritten.length),
+      partition: orig.partition,
+      born: version,
+      schemaId: s.schemaId,
+      stats: computeStats(rewritten),
+    };
+    actions.push({ kind: "add", path: id, dataChange: true });
+  }
+  actions.push({
+    kind: "commitInfo",
+    operation: "UPDATE",
+    metrics: {
+      numUpdatedRows: updatedIds.length,
+      numCopiedRows: copied,
+      numRemovedFiles: targets.length,
+      numAddedFiles: newIds.length,
+    },
+  });
+  return commit(s, {
+    version,
+    op: "update",
+    actions,
+    counters: c,
+    dataFiles,
+    logText:
+      "Copy-on-write UPDATE of " +
+      updatedIds.length +
+      " row(s) (" +
+      updatedIds.join(", ") +
+      " → status=" +
+      UPDATE_STATUS +
+      ") → rewrote " +
+      targets.length +
+      " file(s), version " +
+      version +
+      ".",
+    lastStep: {
+      op: "update",
+      title: "Copy-on-write UPDATE → version " + version,
+      body: "UPDATE has no special action type: like DELETE, it rewrites every file holding a changed row. The surviving rows — changed and unchanged alike — are copied into new files (the changed ones carrying their new values), and the originals are tombstoned. This is the mechanism MERGE uses for its matched updates.",
+      bullets: [
+        "set status=" + UPDATE_STATUS + " on " + updatedIds.length + " row(s)",
+        "removed " + targets.length + " file(s): " + targets.join(", "),
+        "added " + newIds.length + " rewritten file(s): " + (newIds.join(", ") || "none"),
+        copied + " unchanged row(s) copied alongside the changed ones",
+      ],
+    },
+  });
+}
+
+/** Deletion-vector UPDATE: mask the old rows in place and add a small file with the new values (merge-on-read). */
+function dvUpdate(
+  s: TableState,
+  byFile: Map<string, Set<number>>,
+  updatedIds: number[],
+  targets: string[],
+): TableState {
+  const version = s.current + 1;
+  const c = { ...s.counters };
+  const deletionVectors = { ...s.deletionVectors };
+  const dataFiles = { ...s.dataFiles };
+  const liveMap = liveFilesAt(s, s.current);
+  const actions: Action[] = [];
+  const proto = protocolAt(s, s.current);
+  const upgraded = !proto?.features.includes("deletionVectors");
+  if (upgraded) actions.push({ kind: "protocol", ...DV_PROTOCOL });
+  const newDvIds: string[] = [];
+  const newFileIds: string[] = [];
+  for (const target of targets) {
+    const change = byFile.get(target)!;
+    const prevDvId = liveMap.get(target) ?? null;
+    const prevIds = prevDvId ? (s.deletionVectors[prevDvId]?.deletedIds ?? []) : [];
+    const union = [...new Set([...prevIds, ...change])].sort((a, b) => a - b);
+    c.x++;
+    const dvId = "x" + c.x;
+    newDvIds.push(dvId);
+    deletionVectors[dvId] = { id: dvId, target, deletedIds: union, size: 1, born: version };
+    actions.push({ kind: "remove", path: target, dataChange: false });
+    actions.push({ kind: "add", path: target, dataChange: false, dv: dvId });
+    const orig = s.dataFiles[target];
+    const updatedRows = (orig?.records ?? [])
+      .filter((r) => change.has(r.order_id))
+      .map((r) => ({ ...r, status: UPDATE_STATUS }));
+    c.d++;
+    const nid = "d" + c.d;
+    newFileIds.push(nid);
+    dataFiles[nid] = {
+      id: nid,
+      records: updatedRows,
+      size: Math.max(1, updatedRows.length),
+      partition: orig?.partition ?? "",
+      born: version,
+      schemaId: s.schemaId,
+      stats: computeStats(updatedRows),
+    };
+    actions.push({ kind: "add", path: nid, dataChange: true });
+  }
+  actions.push({
+    kind: "commitInfo",
+    operation: "UPDATE",
+    metrics: {
+      numUpdatedRows: updatedIds.length,
+      numDeletionVectorsAdded: newDvIds.length,
+      numAddedFiles: newFileIds.length,
+    },
+  });
+  return commit(s, {
+    version,
+    op: "update",
+    actions,
+    counters: c,
+    dataFiles,
+    deletionVectors,
+    logText:
+      "Deletion-vector UPDATE of " +
+      updatedIds.length +
+      " row(s) (" +
+      updatedIds.join(", ") +
+      " → status=" +
+      UPDATE_STATUS +
+      ") → " +
+      newDvIds.length +
+      " DV(s) + " +
+      newFileIds.length +
+      " new file(s), version " +
+      version +
+      ".",
+    lastStep: {
+      op: "update",
+      title: "Deletion-vector UPDATE → version " + version,
+      body:
+        "With deletion vectors, UPDATE does not rewrite whole files. It masks the old row versions in place with a DV and writes a small new file holding just the changed rows. Readers subtract the DV and union the new file: much less write amplification than copy-on-write." +
+        (upgraded ? " Enabling DVs bumps the table protocol to reader 3 / writer 7." : ""),
+      bullets: [
+        "set status=" + UPDATE_STATUS + " on " + updatedIds.length + " row(s)",
+        newDvIds.length + " DV(s) mask the old rows in " + targets.length + " file(s) (left on disk)",
+        newFileIds.length + " small file(s) hold the new row versions",
+        upgraded
+          ? "protocol upgraded → reader 3 / writer 7 (deletionVectors)"
+          : "protocol already supports deletionVectors",
+      ],
+    },
+  });
+}
+
 // ---- optimize (bin-packing compaction) ---------------------------------
 
 export function optimize(s: TableState): TableState {
@@ -383,7 +603,6 @@ export function optimize(s: TableState): TableState {
   }
   const version = s.current + 1;
   const c = { ...s.counters };
-  const del = deletedIdsAt(s, s.current);
   const dataFiles = { ...s.dataFiles };
   const actions: Action[] = [];
   const removedIds: string[] = [];
@@ -396,9 +615,11 @@ export function optimize(s: TableState): TableState {
     for (const id of ids) {
       const f = s.dataFiles[id];
       if (!f) continue;
-      if (liveMap.get(id)) hasDv = true;
+      const dvId = liveMap.get(id);
+      const masked = dvId ? new Set(s.deletionVectors[dvId]?.deletedIds ?? []) : null;
+      if (dvId) hasDv = true;
       size += f.size || 0;
-      for (const r of f.records) if (!del.has(r.order_id)) records.push({ ...r });
+      for (const r of f.records) if (!(masked && masked.has(r.order_id))) records.push({ ...r });
       actions.push({ kind: "remove", path: id, dataChange: false });
       removedIds.push(id);
     }

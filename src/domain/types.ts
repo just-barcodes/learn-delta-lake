@@ -5,7 +5,14 @@
 // it: (all `add`s) − (all `remove`s), read through the latest metaData/protocol.
 
 /** The operations a commit can represent. `vacuum` and `checkpoint` mutate the log without adding a version. */
-export type Operation = "append" | "delete" | "optimize" | "vacuum" | "checkpoint" | "schema";
+export type Operation =
+  | "append"
+  | "delete"
+  | "update"
+  | "optimize"
+  | "vacuum"
+  | "checkpoint"
+  | "schema";
 
 /** DELETE strategy: copy-on-write rewrites files; deletion-vector masks row positions (merge-on-read). */
 export type DeleteMode = "cow" | "dv";
@@ -93,8 +100,10 @@ export interface Query {
   val: string;
 }
 
-/** Open state for the delete-picker modal. `n` is the "select random N" count. */
+/** Open state for the row-picker modal, shared by DELETE and UPDATE. `n` is the "select random N" count. */
 export interface Picker {
+  /** Whether the picked rows will be deleted or updated. */
+  mode: "delete" | "update";
   /** Map of order_id -> data-file id for the currently-checked rows. */
   selected: Record<number, string>;
   n: number | "";

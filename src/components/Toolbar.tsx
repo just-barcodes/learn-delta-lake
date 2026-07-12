@@ -19,6 +19,8 @@ export function Toolbar({ state, dispatch }: Props) {
   const showAdvanced = level === "advanced";
   const deleteDesc =
     state.deleteMode === "dv" ? "deletion vector (MoR)" : "rewrite files (copy-on-write)";
+  const updateDesc =
+    state.deleteMode === "dv" ? "mask + new file (MoR)" : "rewrite files (copy-on-write)";
 
   return (
     <div className="toolbar">
@@ -30,6 +32,14 @@ export function Toolbar({ state, dispatch }: Props) {
           desc={deleteDesc}
           onClick={() => dispatch({ type: "openDelete" })}
         />
+        {showStructural ? (
+          <ActionButton
+            accent="var(--data-line)"
+            title="Update rows"
+            desc={updateDesc}
+            onClick={() => dispatch({ type: "openUpdate" })}
+          />
+        ) : null}
         {showStructural ? (
           <ActionButton
             accent="var(--meta-line)"

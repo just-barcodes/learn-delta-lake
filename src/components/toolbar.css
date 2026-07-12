@@ -210,6 +210,12 @@
   background: var(--segment-bg);
   border-radius: 8px;
 }
+.delete-mode__note {
+  font-size: 8.5px;
+  color: var(--text-faint);
+  font-style: italic;
+  cursor: help;
+}
 .delete-mode__btn {
   font-family: var(--font-mono);
   font-size: 10px;

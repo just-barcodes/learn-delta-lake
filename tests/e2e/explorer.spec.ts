@@ -51,6 +51,17 @@ test("a commit inspector shows the delta actions as JSON", async ({ page }) => {
   await expect(modal.locator(".fact", { hasText: "adds" })).toContainText("2");
 });
 
+test("update rewrites rows without changing the row count", async ({ page }) => {
+  await page.locator(".action", { hasText: "Update rows" }).click();
+  const picker = page.locator(".picker__rows");
+  await expect(picker).toBeVisible();
+  await picker.locator(".picker__row").first().click();
+  await page.locator(".picker__confirm.is-enabled").click();
+  // UPDATE preserves the row count (unlike delete) and marks the row refunded.
+  expect(await stat(page, "live rows")).toBe(6);
+  await expect(page.locator(".whathappened__title")).toContainText("UPDATE");
+});
+
 test("copy-on-write delete drops rows without adding a deletion vector", async ({ page }) => {
   await page.locator(".action", { hasText: "Delete rows" }).click();
   const picker = page.locator(".picker__rows");

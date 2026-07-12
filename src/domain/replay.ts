@@ -73,12 +73,14 @@ export function liveRecords(
   version: number,
 ): { live: OrderRecord[]; deleted: OrderRecord[] } {
   const files = liveFilesAt(state, version);
-  const del = deletedIdsAt(state, version);
   const live: OrderRecord[] = [];
   const deleted: OrderRecord[] = [];
-  for (const path of files.keys()) {
+  // Masking is per file: a deletion vector masks row positions in *its* file only.
+  // (A row can be masked in an old file yet live in a new one after an UPDATE.)
+  for (const [path, dvId] of files) {
+    const masked = dvId ? new Set(state.deletionVectors[dvId]?.deletedIds ?? []) : null;
     for (const r of state.dataFiles[path]?.records ?? []) {
-      (del.has(r.order_id) ? deleted : live).push(r);
+      (masked && masked.has(r.order_id) ? deleted : live).push(r);
     }
   }
   return { live, deleted };

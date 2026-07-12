@@ -6,6 +6,7 @@ import type { DetailLevel, NodeKind, Operation, TableState } from "../domain/typ
 export const ACCENT_VAR: Record<Operation, string> = {
   append: "var(--data-line)",
   delete: "var(--remove-line)",
+  update: "var(--data-line)",
   optimize: "var(--meta-line)",
   vacuum: "var(--accent-gray)",
   checkpoint: "var(--checkpoint-line)",

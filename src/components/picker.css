@@ -39,6 +39,24 @@
   flex: none;
   text-align: right;
 }
+/* Schema-resolved middle columns: left cells flex to fill, right (numeric) cells stay narrow. */
+.picker__cell {
+  flex: 1;
+  min-width: 0;
+}
+.picker__cell--right {
+  flex: none;
+  width: 72px;
+  text-align: right;
+}
+
+/* Wrapper so the row list scrolls within the modal's height. */
+.picker {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 
 .picker__rows {
   overflow: auto;
@@ -76,6 +94,14 @@
 .picker__row.is-checked .picker__box {
   border-color: var(--remove-line);
   background: var(--remove-line);
+}
+/* UPDATE mode tints the selection amber (a write) instead of red (a delete). */
+.picker--update .picker__row.is-checked {
+  background: var(--data-bg);
+}
+.picker--update .picker__row.is-checked .picker__box {
+  border-color: var(--data-line);
+  background: var(--data-line);
 }
 
 .picker__mono {

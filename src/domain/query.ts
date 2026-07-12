@@ -1,4 +1,4 @@
-import { deletedIdsAt, liveFileIds } from "./replay";
+import { liveFileIds, liveFilesAt } from "./replay";
 import { amt } from "./stats";
 import type { DataFile, OrderRecord, Query, QueryOp, TableState } from "./types";
 
@@ -81,17 +81,17 @@ export interface QueryResult {
 export function planQuery(state: TableState): QueryResult | null {
   const active = !!(state.qActive && state.q && state.q.val !== "" && state.q.val != null);
   if (!active) return null;
-  const del = deletedIdsAt(state, state.selected);
   let scanned = 0;
   let pruned = 0;
   let rows = 0;
-  for (const id of liveFileIds(state, state.selected)) {
+  for (const [id, dvId] of liveFilesAt(state, state.selected)) {
     const f = state.dataFiles[id];
     if (!f) continue;
     if (fileMatchesQuery(f, state.q)) {
       scanned++;
+      const masked = dvId ? new Set(state.deletionVectors[dvId]?.deletedIds ?? []) : null;
       for (const r of f.records) {
-        if (!del.has(r.order_id) && rowMatches(r, state.q)) rows++;
+        if (!(masked && masked.has(r.order_id)) && rowMatches(r, state.q)) rows++;
       }
     } else {
       pruned++;

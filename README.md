@@ -1,9 +1,9 @@
 # Delta Lake Explorer
 
 An interactive visualization of what happens _inside_ a Delta Lake table as you
-run commits. Append, delete (copy-on-write or deletion vectors), OPTIMIZE, VACUUM,
-evolve the schema, and write a checkpoint, then watch how the transaction log and
-data files rewire.
+run commits. Append, delete or update (copy-on-write or deletion vectors),
+OPTIMIZE, VACUUM, evolve the schema, and write a checkpoint, then watch how the
+transaction log and data files rewire.
 Click any node to inspect it; click a version to time-travel. Supports light and
 dark mode.
 
@@ -98,16 +98,22 @@ A `TableState` holds the `commits` (the log), `checkpoints`, `dataFiles`, and
 state. Every operation is a pure function `TableState → TableState`, dispatched
 through a reducer. The UI is a pure projection of this state.
 
-The six operations map to Delta commands:
+The seven operations map to Delta commands:
 
 | Operation      | What it does                                                                     |
 | -------------- | ------------------------------------------------------------------------------- |
 | **Append**     | INSERT: new Parquet files + one commit of `add` actions → a new version.        |
 | **Delete**     | Copy-on-write (`remove` + rewritten `add`) or a deletion vector (mask).         |
+| **Update**     | Same file mechanics as delete, but rows change: CoW rewrite, or DV mask + a small new file. This is the mechanism `MERGE` uses for matched rows. |
 | **Optimize**   | Bin-pack small files per partition (`dataChange: false`); old files linger.     |
 | **Vacuum**     | Physically delete tombstoned files. No new version; ends stale time travel.     |
 | **Schema**     | Evolve columns via a `metaData` commit; rename/drop need column mapping.        |
 | **Checkpoint** | Snapshot the live-file set; readers then skip replay-from-zero.                 |
+
+The table uses classic partitioning (a generated `order_month` column). Delta's newer
+**liquid clustering** — which replaces partitioning rather than complementing it, and
+so cannot be applied to this already-partitioned demo table — is intentionally not
+modelled.
 
 ### Theming
 

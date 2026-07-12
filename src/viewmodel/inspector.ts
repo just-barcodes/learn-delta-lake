@@ -1,12 +1,5 @@
 import { tsMs } from "../domain/ids";
-import {
-  commitAt,
-  deletedIdsAt,
-  liveFileIds,
-  liveFilesAt,
-  protocolAt,
-  schemaIdAt,
-} from "../domain/replay";
+import { commitAt, liveFileIds, liveFilesAt, protocolAt, schemaIdAt } from "../domain/replay";
 import { GEN_MONTH, TABLE_ID } from "../domain/schema";
 import { fieldInSchema, SCHEMA_DEFS, type SchemaField } from "../domain/schemas";
 import type { Action, FileStats, NodeKind, OrderRecord, TableState } from "../domain/types";
@@ -80,14 +73,14 @@ function materializeTagged(
   version: number,
 ): { live: TaggedRecord[]; deleted: TaggedRecord[] } {
   const files = liveFilesAt(state, version);
-  const del = deletedIdsAt(state, version);
   const live: TaggedRecord[] = [];
   const deleted: TaggedRecord[] = [];
-  for (const path of files.keys()) {
+  for (const [path, dvId] of files) {
     const f = state.dataFiles[path];
     if (!f) continue;
+    const masked = dvId ? new Set(state.deletionVectors[dvId]?.deletedIds ?? []) : null;
     for (const r of f.records) {
-      (del.has(r.order_id) ? deleted : live).push({ rec: r, schemaId: f.schemaId });
+      (masked && masked.has(r.order_id) ? deleted : live).push({ rec: r, schemaId: f.schemaId });
     }
   }
   return { live, deleted };

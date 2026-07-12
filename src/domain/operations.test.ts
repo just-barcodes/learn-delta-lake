@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initialState } from "./initialState";
 import * as ops from "./operations";
-import { liveFileIds, liveRowCount, protocolAt, schemaIdAt } from "./replay";
+import { liveFileIds, liveRecords, liveRowCount, protocolAt, schemaIdAt } from "./replay";
 import { fieldInSchema, SCHEMA_DEFS } from "./schemas";
 import type { TableState } from "./types";
 
@@ -77,6 +77,42 @@ describe("deletion-vector delete (advanced mode)", () => {
     expect(liveRowCount(s2, 2)).toBe(4);
     const dv = Object.values(s2.deletionVectors).find((d) => d.born === 2)!;
     expect(dv.deletedIds).toEqual([1001, 1002]);
+  });
+});
+
+/** Open the UPDATE picker and check the given ids. */
+function pickUpdate(s: TableState, ids: number[]): TableState {
+  let next = ops.openUpdate(s);
+  for (const id of ids) {
+    const file = Object.values(next.dataFiles).find((f) =>
+      f.records.some((r) => r.order_id === id),
+    );
+    next = ops.togglePick(next, id, file!.id);
+  }
+  return next;
+}
+
+describe("update", () => {
+  it("copy-on-write UPDATE rewrites files and changes values without losing rows", () => {
+    const s = ops.confirmUpdate(pickUpdate(initialState(), [1001]));
+    expect(s.current).toBe(1);
+    expect(liveRowCount(s, 1)).toBe(6); // row count preserved (unlike delete)
+    const kinds = s.commits[1].actions.map((a) => a.kind);
+    expect(kinds).toContain("remove");
+    expect(kinds).toContain("add");
+    expect(Object.keys(s.deletionVectors)).toHaveLength(0);
+    expect(liveRecords(s, 1).live.find((r) => r.order_id === 1001)?.status).toBe("refunded");
+    expect(liveFileIds(s, 1).has("d1")).toBe(false); // original rewritten
+  });
+
+  it("deletion-vector UPDATE masks the old row, adds a new file, and upgrades the protocol", () => {
+    const base = ops.setDeleteMode(initialState(), "dv");
+    const s = ops.confirmUpdate(pickUpdate(base, [1001]));
+    expect(liveRowCount(s, 1)).toBe(6);
+    expect(Object.keys(s.deletionVectors)).toHaveLength(1);
+    expect(protocolAt(s, 1)?.features).toContain("deletionVectors");
+    expect(liveFileIds(s, 1).has("d1")).toBe(true); // old file kept, masked
+    expect(liveRecords(s, 1).live.find((r) => r.order_id === 1001)?.status).toBe("refunded");
   });
 });
 
