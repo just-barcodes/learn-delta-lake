@@ -110,7 +110,7 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #17150f;
+  --bg: #0e1116;
   --header-bg: #201d16;
   --toolbar-bg: #1c1a14;
   --panel-bg: #201d16;
@@ -195,7 +195,7 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --bg: #17150f;
+    --bg: #0e1116;
     --header-bg: #201d16;
     --toolbar-bg: #1c1a14;
     --panel-bg: #201d16;
