@@ -55,7 +55,7 @@ npm run preview      # serve the production build
 npm test             # unit tests (Vitest)
 npm run test:e2e     # end-to-end smoke tests (Playwright)
 npm run typecheck    # tsc, no emit
-npm run lint         # eslint
+npm run lint         # oxlint
 ```
 
 Everything is bundled locally (React and the IBM Plex fonts are self-hosted), so
