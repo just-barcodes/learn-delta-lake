@@ -131,9 +131,7 @@ describe("optimize", () => {
     const info = s.commits[2].actions.find((a) => a.kind === "commitInfo");
     expect(info).toBeTruthy();
     // dataChange:false — logical table unchanged
-    expect(s.commits[2].actions.every((a) => a.kind !== "add" || a.dataChange === false)).toBe(
-      true,
-    );
+    expect(s.commits[2].actions.every((a) => a.kind !== "add" || !a.dataChange)).toBe(true);
   });
 
   it("refuses when there is nothing worth optimizing", () => {

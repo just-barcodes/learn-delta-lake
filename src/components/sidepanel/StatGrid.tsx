@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { TableState } from "../../domain/types";
 import { buildStats } from "../../viewmodel/panels";
 
@@ -13,7 +12,7 @@ export function StatGrid({ state }: Props) {
     <div className="stat-grid">
       {stats.map((s) => (
         <div key={s.label} className="stat">
-          <div className="stat__value" style={{ color: s.colorVar } as CSSProperties}>
+          <div className="stat__value" style={{ color: s.colorVar }}>
             {s.value}
           </div>
           <div className="stat__label">{s.label}</div>

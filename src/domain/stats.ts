@@ -2,7 +2,7 @@ import type { FileStats, OrderRecord } from "./types";
 
 /** Parse a display amount like "CHF 197.07" into a number. */
 export function amt(v: string): number {
-  return parseFloat(String(v).replace(/[^\d.]/g, "")) || 0;
+  return parseFloat(v.replace(/[^\d.]/g, "")) || 0;
 }
 
 /**

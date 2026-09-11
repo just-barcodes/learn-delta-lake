@@ -28,7 +28,7 @@ export function fileMatchesQuery(f: DataFile, q: Query): boolean {
   if (!q || q.val === "" || q.val == null) return true;
   const { min, max } = f.stats;
   if (q.col === "order_date") {
-    const L = String(q.val).length;
+    const L = q.val.length;
     return min.order_date.slice(0, L) <= q.val && q.val <= max.order_date.slice(0, L);
   }
   const v = parseFloat(q.val);
@@ -40,7 +40,7 @@ export function fileMatchesQuery(f: DataFile, q: Query): boolean {
 /** Whether an individual row satisfies the query predicate. */
 export function rowMatches(r: OrderRecord, q: Query): boolean {
   if (q.col === "order_date") {
-    return String(r.order_date).slice(0, String(q.val).length) === String(q.val);
+    return r.order_date.slice(0, q.val.length) === q.val;
   }
   const a = q.col === "amount" ? amt(r.amount) : r.order_id;
   const v = parseFloat(q.val);
@@ -79,7 +79,7 @@ export interface QueryResult {
 
 /** Run the query plan over the selected version: files scanned vs skipped, matching live rows. */
 export function planQuery(state: TableState): QueryResult | null {
-  const active = !!(state.qActive && state.q && state.q.val !== "" && state.q.val != null);
+  const active = state.qActive && state.q && state.q.val !== "" && state.q.val != null;
   if (!active) return null;
   let scanned = 0;
   let pruned = 0;

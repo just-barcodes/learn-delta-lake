@@ -611,7 +611,7 @@ export function optimize(s: TableState): TableState {
   const removedIds: string[] = [];
   const addedIds: string[] = [];
   let hasDv = false;
-  let liveRows = 0;
+  let repackedRows = 0;
   for (const [partition, ids] of targets.sort((a, b) => a[0].localeCompare(b[0]))) {
     const records: OrderRecord[] = [];
     let size = 0;
@@ -626,7 +626,7 @@ export function optimize(s: TableState): TableState {
       actions.push({ kind: "remove", path: id, dataChange: false });
       removedIds.push(id);
     }
-    liveRows += records.length;
+    repackedRows += records.length;
     if (!records.length) continue; // every row masked away — just drop the files
     c.d++;
     const cid = "d" + c.d;
@@ -679,8 +679,8 @@ export function optimize(s: TableState): TableState {
           " file(s): " +
           (addedIds.join(", ") || "none"),
         hasDv
-          ? "deletion vectors baked in; " + liveRows + " live rows remain"
-          : liveRows + " live rows repacked",
+          ? "deletion vectors baked in; " + repackedRows + " live rows remain"
+          : repackedRows + " live rows repacked",
         "commit marked dataChange: false (no logical change)",
         "old files persist until you VACUUM",
       ],
@@ -826,7 +826,7 @@ export function evolveSchema(s: TableState): TableState {
   const actions: Action[] = [];
   if (needsFeature) {
     // Adding a table feature moves the table onto table-features protocol (reader 3 / writer 7).
-    const features = [...new Set([...(proto?.features ?? []), feature!])];
+    const features = [...new Set([...(proto?.features ?? []), feature])];
     actions.push({
       kind: "protocol",
       minReader: Math.max(3, proto?.minReader ?? 1),

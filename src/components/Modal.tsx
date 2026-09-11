@@ -18,8 +18,14 @@ export function Modal({ onClose, width, children }: Props) {
   }, [onClose]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" style={{ width }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="modal-panel" style={{ width }}>
         {children}
       </div>
     </div>

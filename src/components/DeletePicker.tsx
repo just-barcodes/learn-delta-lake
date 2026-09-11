@@ -58,29 +58,41 @@ export function DeletePicker({ state, dispatch }: Props) {
         </div>
 
         <div className="picker__rows">
-          {model.rows.map((r) => (
-            <div
-              key={r.oid}
-              className={"picker__row" + (r.checked ? " is-checked" : "")}
-              onClick={() => dispatch({ type: "togglePick", oid: r.oid, file: r.file })}
-            >
-              <span className="picker__box">{r.checked ? "✓" : ""}</span>
-              <span className="picker__id-col picker__mono">{r.oid}</span>
-              {r.cells.map((cell, i) => (
-                <span
-                  key={i}
-                  className={
-                    "picker__cell" +
-                    (cell.align === "right" ? " picker__cell--right" : "") +
-                    (cell.mono ? " picker__mono" : " picker__ellipsis")
+          {model.rows.map((r) => {
+            const toggle = () => dispatch({ type: "togglePick", oid: r.oid, file: r.file });
+            return (
+              <div
+                key={r.oid}
+                role="checkbox"
+                aria-checked={r.checked}
+                tabIndex={0}
+                className={"picker__row" + (r.checked ? " is-checked" : "")}
+                onClick={toggle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggle();
                   }
-                >
-                  {cell.value}
-                </span>
-              ))}
-              <span className="picker__file-col picker__file">{r.file}.parquet</span>
-            </div>
-          ))}
+                }}
+              >
+                <span className="picker__box">{r.checked ? "✓" : ""}</span>
+                <span className="picker__id-col picker__mono">{r.oid}</span>
+                {r.cells.map((cell, i) => (
+                  <span
+                    key={i}
+                    className={
+                      "picker__cell" +
+                      (cell.align === "right" ? " picker__cell--right" : "") +
+                      (cell.mono ? " picker__mono" : " picker__ellipsis")
+                    }
+                  >
+                    {cell.value}
+                  </span>
+                ))}
+                <span className="picker__file-col picker__file">{r.file}.parquet</span>
+              </div>
+            );
+          })}
         </div>
 
         <div className="picker__footer">
