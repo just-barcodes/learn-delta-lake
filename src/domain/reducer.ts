@@ -90,5 +90,9 @@ export function reducer(state: TableState, action: Action): TableState {
       return ops.runQuery(state);
     case "clearQuery":
       return ops.clearQuery(state);
+    default: {
+      const exhaustive: never = action;
+      return exhaustive;
+    }
   }
 }

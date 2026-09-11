@@ -88,7 +88,7 @@ export function Connectors({ state, themeKey, mapRef, innerRef, svgRef }: Props)
     const ro = new ResizeObserver(schedule);
     if (inner) ro.observe(inner);
     window.addEventListener("resize", schedule);
-    if (document.fonts?.ready) document.fonts.ready.then(schedule).catch(() => {});
+    document.fonts?.ready.then(schedule).catch(() => {});
 
     return () => {
       cancelAnimationFrame(rafRef.current);

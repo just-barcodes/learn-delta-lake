@@ -225,6 +225,10 @@ function actionObject(a: Action, state: TableState): object {
           operationMetrics: a.metrics,
         },
       };
+    default: {
+      const exhaustive: never = a;
+      return exhaustive;
+    }
   }
 }
 
